@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anime-calendar-qt"
+version = "1.0.0"
+description = "Desktop anime calendar with AniList integration"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.7.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "keyring>=24.3.0",
+]
+
+[tool.pyinstaller]
+name = "AnimeCalendar"
+onefile = true
+windowed = true
+icon = "resources/icons/app.ico"
