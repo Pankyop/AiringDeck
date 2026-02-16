@@ -9,6 +9,12 @@ import "components/Calendar"
 FocusScope {
     id: mainContent
     property string pendingFilterText: ""
+    property var sortOptions: [
+        { label: "Sort: Airing", value: "airing_time" },
+        { label: "Sort: Title", value: "title" },
+        { label: "Sort: Progress", value: "progress" },
+        { label: "Sort: Score", value: "score" }
+    ]
     
     function resolveSidebarCover(selectedAnime) {
         if (!selectedAnime || !selectedAnime.media || !selectedAnime.media.coverImage) {
@@ -16,6 +22,15 @@ FocusScope {
         }
         var cover = selectedAnime.media.coverImage
         return cover.extraLarge || cover.large || cover.medium || ""
+    }
+
+    function genreIndexOf(value) {
+        for (var i = 0; i < appController.availableGenres.length; i++) {
+            if (appController.availableGenres[i] === value) {
+                return i
+            }
+        }
+        return 0
     }
     
     // Parent handles window properties
@@ -235,6 +250,85 @@ FocusScope {
                                     visible: appController.isAuthenticated
                                     Layout.alignment: Qt.AlignVCenter
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Filters and sorting row
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 66
+                    color: "#0f172a"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 10
+
+                        ComboBox {
+                            id: genreCombo
+                            Layout.preferredWidth: 190
+                            model: appController.availableGenres
+                            currentIndex: mainContent.genreIndexOf(appController.selectedGenre)
+                            onActivated: {
+                                if (currentIndex >= 0 && currentIndex < model.length) {
+                                    appController.selectedGenre = model[currentIndex]
+                                }
+                            }
+                        }
+
+                        SpinBox {
+                            id: minScoreSpin
+                            from: 0
+                            to: 100
+                            stepSize: 1
+                            editable: true
+                            value: appController.minScore
+                            Layout.preferredWidth: 120
+                            onValueModified: appController.minScore = value
+                        }
+
+                        CheckBox {
+                            id: onlyTodayCheck
+                            text: "Only today"
+                            checked: appController.onlyToday
+                            onToggled: appController.onlyToday = checked
+                        }
+
+                        ComboBox {
+                            id: sortCombo
+                            Layout.preferredWidth: 170
+                            model: mainContent.sortOptions
+                            textRole: "label"
+                            currentIndex: {
+                                for (var i = 0; i < mainContent.sortOptions.length; i++) {
+                                    if (mainContent.sortOptions[i].value === appController.sortField) {
+                                        return i
+                                    }
+                                }
+                                return 0
+                            }
+                            onActivated: {
+                                appController.sortField = mainContent.sortOptions[currentIndex].value
+                            }
+                        }
+
+                        Button {
+                            text: appController.sortAscending ? "ASC" : "DESC"
+                            Layout.preferredWidth: 82
+                            onClicked: appController.toggleSortDirection()
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Button {
+                            text: "Reset filters"
+                            Layout.preferredWidth: 110
+                            onClicked: {
+                                searchInput.text = ""
+                                mainContent.pendingFilterText = ""
+                                appController.resetAllFilters()
                             }
                         }
                     }

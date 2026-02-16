@@ -25,6 +25,12 @@ class AppController(QObject):
     dailyCountsChanged = Signal()
     filterTextChanged = Signal()
     useEnglishTitleChanged = Signal()
+    selectedGenreChanged = Signal()
+    onlyTodayChanged = Signal()
+    minScoreChanged = Signal()
+    sortFieldChanged = Signal()
+    sortAscendingChanged = Signal()
+    availableGenresChanged = Signal()
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -36,6 +42,12 @@ class AppController(QObject):
         self._selected_anime = None
         self._filter_text = ""
         self._pending_filter_text = ""
+        self._selected_genre = "All genres"
+        self._only_today = False
+        self._min_score = 0
+        self._sort_field = "airing_time"
+        self._sort_ascending = True
+        self._available_genres = ["All genres"]
         self._anime_by_id = {}
         
         # High-performance Models
@@ -54,6 +66,11 @@ class AppController(QObject):
         # Persistent Settings
         self._settings = QSettings("AiringDeck", "AiringDeck")
         self._use_english_title = self._settings.value("use_english_title", False, type=bool)
+        self._selected_genre = self._settings.value("selected_genre", "All genres", type=str)
+        self._only_today = self._settings.value("only_today", False, type=bool)
+        self._min_score = self._settings.value("min_score", 0, type=int)
+        self._sort_field = self._settings.value("sort_field", "airing_time", type=str)
+        self._sort_ascending = self._settings.value("sort_ascending", True, type=bool)
         
         # Calendar State
         self._daily_counts = [0] * 7
@@ -254,6 +271,90 @@ class AppController(QObject):
         self.filterTextChanged.emit()
         self.animeListChanged.emit()
 
+    @Property('QVariantList', notify=availableGenresChanged)
+    def availableGenres(self):
+        return self._available_genres
+
+    @Property(str, notify=selectedGenreChanged)
+    def selectedGenre(self):
+        return self._selected_genre
+
+    @selectedGenre.setter
+    def selectedGenre(self, value):
+        value = value or "All genres"
+        if self._selected_genre == value:
+            return
+        self._selected_genre = value
+        self._settings.setValue("selected_genre", value)
+        self._update_ui_models()
+        self.selectedGenreChanged.emit()
+        self.animeListChanged.emit()
+
+    @Property(bool, notify=onlyTodayChanged)
+    def onlyToday(self):
+        return self._only_today
+
+    @onlyToday.setter
+    def onlyToday(self, value):
+        value = bool(value)
+        if self._only_today == value:
+            return
+        self._only_today = value
+        self._settings.setValue("only_today", value)
+        self._update_ui_models()
+        self.onlyTodayChanged.emit()
+        self.animeListChanged.emit()
+
+    @Property(int, notify=minScoreChanged)
+    def minScore(self):
+        return self._min_score
+
+    @minScore.setter
+    def minScore(self, value):
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            value = 0
+        value = max(0, min(100, value))
+        if self._min_score == value:
+            return
+        self._min_score = value
+        self._settings.setValue("min_score", value)
+        self._update_ui_models()
+        self.minScoreChanged.emit()
+        self.animeListChanged.emit()
+
+    @Property(str, notify=sortFieldChanged)
+    def sortField(self):
+        return self._sort_field
+
+    @sortField.setter
+    def sortField(self, value):
+        allowed = {"airing_time", "title", "progress", "score"}
+        value = value if value in allowed else "airing_time"
+        if self._sort_field == value:
+            return
+        self._sort_field = value
+        self._settings.setValue("sort_field", value)
+        self._update_ui_models()
+        self.sortFieldChanged.emit()
+        self.animeListChanged.emit()
+
+    @Property(bool, notify=sortAscendingChanged)
+    def sortAscending(self):
+        return self._sort_ascending
+
+    @sortAscending.setter
+    def sortAscending(self, value):
+        value = bool(value)
+        if self._sort_ascending == value:
+            return
+        self._sort_ascending = value
+        self._settings.setValue("sort_ascending", value)
+        self._update_ui_models()
+        self.sortAscendingChanged.emit()
+        self.animeListChanged.emit()
+
     @Property('QVariantList', notify=dailyCountsChanged)
     def dailyCounts(self):
         return self._daily_counts
@@ -315,6 +416,9 @@ class AppController(QObject):
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
         self._full_airing_entries = []
+        if self._available_genres != ["All genres"]:
+            self._available_genres = ["All genres"]
+            self.availableGenresChanged.emit()
         self._update_ui_models()
         
         self.authenticated.emit(False)
@@ -323,6 +427,48 @@ class AppController(QObject):
         self.dailyCountsChanged.emit()
         self.animeListChanged.emit()
         self._set_loading(False, "Logged out")
+
+    @Slot()
+    def toggleSortDirection(self):
+        self.sortAscending = not self._sort_ascending
+
+    @Slot()
+    def resetAllFilters(self):
+        changed = False
+        if self._filter_text or self._pending_filter_text:
+            self._filter_text = ""
+            self._pending_filter_text = ""
+            self.filterTextChanged.emit()
+            changed = True
+        if self._selected_genre != "All genres":
+            self._selected_genre = "All genres"
+            self._settings.setValue("selected_genre", self._selected_genre)
+            self.selectedGenreChanged.emit()
+            changed = True
+        if self._only_today:
+            self._only_today = False
+            self._settings.setValue("only_today", False)
+            self.onlyTodayChanged.emit()
+            changed = True
+        if self._min_score != 0:
+            self._min_score = 0
+            self._settings.setValue("min_score", 0)
+            self.minScoreChanged.emit()
+            changed = True
+        if self._sort_field != "airing_time":
+            self._sort_field = "airing_time"
+            self._settings.setValue("sort_field", self._sort_field)
+            self.sortFieldChanged.emit()
+            changed = True
+        if not self._sort_ascending:
+            self._sort_ascending = True
+            self._settings.setValue("sort_ascending", True)
+            self.sortAscendingChanged.emit()
+            changed = True
+
+        if changed:
+            self._update_ui_models()
+            self.animeListChanged.emit()
     
     @Slot()
     def syncAnimeList(self):
@@ -413,19 +559,72 @@ class AppController(QObject):
     def _update_ui_models(self):
         """Sync Python data to QML models with filtering"""
         query = self._filter_text.lower().strip()
-        
+        selected_genre = self._selected_genre.lower().strip()
+        today_weekday = datetime.now().weekday()
+
+        filtered_counts = [0] * 7
         # Update Individual Day Models
         for i in range(7):
             day_list = self._weekly_schedule_cache[i]
-            if query:
-                day_list = filter_entries(day_list, query)
-            self._day_models[i].update_data(day_list)
+            if self._only_today and i != today_weekday:
+                filtered_day = []
+            else:
+                filtered_day = self._apply_filters(day_list, query, selected_genre)
+                filtered_day = self._sort_entries(filtered_day)
+            self._day_models[i].update_data(filtered_day)
+            filtered_counts[i] = len(filtered_day)
 
         # Update Full Model (Airing Only)
         full_airing = self._full_airing_entries
-        if query:
-            full_airing = filter_entries(full_airing, query)
+        if self._only_today:
+            full_airing = [e for e in full_airing if e.get("calendar_day") == today_weekday]
+        full_airing = self._apply_filters(full_airing, query, selected_genre)
+        full_airing = self._sort_entries(full_airing)
         self._all_anime_model.update_data(full_airing)
+        if filtered_counts != self._daily_counts:
+            self._daily_counts = filtered_counts
+            self.dailyCountsChanged.emit()
+
+    def _apply_filters(self, entries, query: str, selected_genre: str):
+        filtered = entries
+        if query:
+            filtered = filter_entries(filtered, query)
+        if selected_genre and selected_genre != "all genres":
+            filtered = [
+                e for e in filtered
+                if any((g or "").lower() == selected_genre for g in e.get("media", {}).get("genres", []))
+            ]
+        if self._min_score > 0:
+            filtered = [
+                e for e in filtered
+                if (e.get("media", {}).get("averageScore") or 0) >= self._min_score
+            ]
+        return filtered
+
+    def _sort_entries(self, entries):
+        if len(entries) < 2:
+            return entries
+
+        reverse = not self._sort_ascending
+
+        if self._sort_field == "title":
+            return sorted(entries, key=lambda e: (e.get("display_title") or "").lower(), reverse=reverse)
+        if self._sort_field == "progress":
+            return sorted(entries, key=lambda e: int(e.get("progress") or 0), reverse=reverse)
+        if self._sort_field == "score":
+            return sorted(
+                entries,
+                key=lambda e: int(e.get("media", {}).get("averageScore") or -1),
+                reverse=reverse,
+            )
+
+        # Default: airing_time
+        def airing_key(entry):
+            nxt = entry.get("media", {}).get("nextAiringEpisode")
+            airing_at = nxt.get("airingAt") if nxt else None
+            return airing_at if airing_at is not None else 10**18
+
+        return sorted(entries, key=airing_key, reverse=reverse)
 
     def _on_anime_list_result(self, anime_list, from_cache=False):
         """Handle anime list result and process for calendar"""
@@ -434,6 +633,7 @@ class AppController(QObject):
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
         self._full_airing_entries = []
+        genre_set = set()
         
         today_weekday = datetime.now().weekday()
         
@@ -468,11 +668,23 @@ class AppController(QObject):
                 entry['airing_time_formatted'] = "TBA"
                 entry['is_today'] = False
 
+            for genre in media.get("genres", []):
+                if genre:
+                    genre_set.add(genre)
+
         if not from_cache:
             self._save_offline_cache()
 
+        new_genres = ["All genres"] + sorted(genre_set)
+        if new_genres != self._available_genres:
+            self._available_genres = new_genres
+            if self._selected_genre not in self._available_genres:
+                self._selected_genre = "All genres"
+                self._settings.setValue("selected_genre", self._selected_genre)
+                self.selectedGenreChanged.emit()
+            self.availableGenresChanged.emit()
+
         self._update_ui_models()
-        self.dailyCountsChanged.emit()
         self.animeListChanged.emit()
         self._set_loading(False, f"Synced {len(anime_list)} anime")
         logger.info("Synced %d anime. Day counts: %s", len(anime_list), self._daily_counts)
