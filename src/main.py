@@ -2,6 +2,7 @@ import sys
 import os
 import ctypes
 import logging
+from time import perf_counter
 from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtQml import QQmlApplicationEngine
@@ -68,8 +69,7 @@ def main():
         return -1
     
     # Load BootShell (Instant UI)
-    import time
-    start_time = time.time()
+    start_time = perf_counter()
     
     qml_file = get_resource_path("src/ui/qml/BootShell.qml")
     if not qml_file.exists():
@@ -78,7 +78,7 @@ def main():
         
     engine.load(QUrl.fromLocalFile(str(qml_file)))
     
-    logger.info("BootShell loaded in %dms", int((time.time() - start_time) * 1000))
+    logger.info("BootShell loaded in %dms", int((perf_counter() - start_time) * 1000))
     
     if not engine.rootObjects():
         QMessageBox.critical(None, "QML Error", "Failed to load QML objects. Check logs for details.")

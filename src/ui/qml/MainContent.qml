@@ -387,13 +387,17 @@ FocusScope {
                                 fillMode: Image.PreserveAspectCrop
                                 opacity: 0.2
                                 asynchronous: true
+                                sourceSize.width: Math.max(1, Math.round(width))
+                                sourceSize.height: Math.max(1, Math.round(height))
                             }
                             
                             MultiEffect {
                                 anchors.fill: sidebarBgBlur
                                 source: sidebarBgBlur
+                                visible: sidebarBgBlur.status === Image.Ready && sidebarBgBlur.source !== ""
+                                enabled: visible
                                 blurEnabled: true
-                                blur: 0.8
+                                blur: 0.6
                             }
                             
                             // Focused Foreground Image
@@ -404,6 +408,8 @@ FocusScope {
                                 fillMode: Image.PreserveAspectFit
                                 asynchronous: true
                                 smooth: true
+                                sourceSize.width: Math.max(1, Math.round(width))
+                                sourceSize.height: Math.max(1, Math.round(height))
                                 
                                 OpacityAnimator on opacity {
                                     from: 0; to: 1; duration: 400

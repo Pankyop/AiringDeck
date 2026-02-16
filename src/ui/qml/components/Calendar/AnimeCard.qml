@@ -80,6 +80,8 @@ Item {
                     source: root.resolveCardCover(animeData)
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
+                    sourceSize.width: Math.max(1, Math.round(width))
+                    sourceSize.height: Math.max(1, Math.round(height))
                     opacity: status === Image.Ready ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 300 } }
                 }

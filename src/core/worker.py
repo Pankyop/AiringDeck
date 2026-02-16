@@ -1,6 +1,9 @@
 import traceback
 import sys
+import logging
 from PySide6.QtCore import QRunnable, Slot, Signal, QObject
+
+logger = logging.getLogger("airingdeck.worker")
 
 class WorkerSignals(QObject):
     """ 
@@ -31,9 +34,10 @@ class Worker(QRunnable):
         """
         try:
             result = self.fn(*self.args, **self.kwargs)
-        except:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
+        except Exception as exc:
+            logger.exception("Worker function failed")
+            exctype = type(exc)
+            _, value = sys.exc_info()[:2]
             self.signals.error.emit((exctype, value, traceback.format_exc()))
         else:
             self.signals.result.emit(result)
