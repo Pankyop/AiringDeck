@@ -6,7 +6,7 @@ from time import perf_counter
 from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtCore import QUrl, Qt
+from PySide6.QtCore import QUrl, Qt, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -21,6 +21,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("airingdeck.main")
 
+
+def _is_truthy(value: str | None) -> bool:
+    if not value:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
 def get_resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     if hasattr(sys, '_MEIPASS'):
@@ -28,6 +34,9 @@ def get_resource_path(relative_path):
     return Path(__file__).parent.parent / relative_path
 
 def main():
+    profiling_mode = _is_truthy(os.getenv("AIRINGDECK_PROFILE"))
+    auto_exit_ms = int(os.getenv("AIRINGDECK_AUTO_EXIT_MS", "0") or "0")
+
     # Set AppUserModelID for Windows Taskbar consistency
     if os.name == 'nt':
         try:
@@ -47,7 +56,7 @@ def main():
     
     # Create application
     app = QApplication(sys.argv)
-    app.setApplicationName("AiringDeck")
+    app.setApplicationName("AiringDeck [DEV-PROFILE]" if profiling_mode else "AiringDeck")
     app.setOrganizationName("AiringDeck")
     app.setApplicationVersion(APP_VERSION)
     
@@ -83,7 +92,11 @@ def main():
     if not engine.rootObjects():
         QMessageBox.critical(None, "QML Error", "Failed to load QML objects. Check logs for details.")
         return -1
-    
+
+    if auto_exit_ms > 0:
+        logger.info("Auto-exit timer enabled: %dms", auto_exit_ms)
+        QTimer.singleShot(auto_exit_ms, app.quit)
+
     # Run application
     return app.exec()
 
