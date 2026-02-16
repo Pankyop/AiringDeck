@@ -10,10 +10,10 @@ FocusScope {
     id: mainContent
     property string pendingFilterText: ""
     property var sortOptions: [
-        { label: "Sort: Airing", value: "airing_time" },
-        { label: "Sort: Title", value: "title" },
-        { label: "Sort: Progress", value: "progress" },
-        { label: "Sort: Score", value: "score" }
+        { label: "Ordina: Uscita", value: "airing_time" },
+        { label: "Ordina: Titolo", value: "title" },
+        { label: "Ordina: Progresso", value: "progress" },
+        { label: "Ordina: Voto", value: "score" }
     ]
     
     function resolveSidebarCover(selectedAnime) {
@@ -31,6 +31,34 @@ FocusScope {
             }
         }
         return 0
+    }
+
+    function genreLabel(value) {
+        if (!value || value === "All genres") {
+            return "Tutti i generi"
+        }
+        var map = {
+            "Action": "Azione",
+            "Adventure": "Avventura",
+            "Comedy": "Commedia",
+            "Drama": "Drammatico",
+            "Ecchi": "Ecchi",
+            "Fantasy": "Fantasy",
+            "Hentai": "Hentai",
+            "Horror": "Horror",
+            "Mahou Shoujo": "Magical Girl",
+            "Mecha": "Mecha",
+            "Music": "Musica",
+            "Mystery": "Mistero",
+            "Psychological": "Psicologico",
+            "Romance": "Romantico",
+            "Sci-Fi": "Fantascienza",
+            "Slice of Life": "Slice of Life",
+            "Sports": "Sport",
+            "Supernatural": "Soprannaturale",
+            "Thriller": "Thriller"
+        }
+        return map[value] || value
     }
     
     // Parent handles window properties
@@ -271,6 +299,38 @@ FocusScope {
                             Layout.preferredWidth: 190
                             model: appController.availableGenres
                             currentIndex: mainContent.genreIndexOf(appController.selectedGenre)
+                            displayText: mainContent.genreLabel(
+                                (currentIndex >= 0 && currentIndex < model.length) ? model[currentIndex] : "All genres"
+                            )
+                            contentItem: Text {
+                                leftPadding: 10
+                                rightPadding: genreCombo.indicator.width + genreCombo.spacing
+                                text: genreCombo.displayText
+                                color: "#f3f4f6"
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                font.pixelSize: 13
+                            }
+                            background: Rectangle {
+                                radius: 6
+                                color: "#1f2937"
+                                border.color: "#4b5563"
+                                border.width: 1
+                            }
+                            delegate: ItemDelegate {
+                                width: parent.width
+                                highlighted: genreCombo.highlightedIndex === index
+                                contentItem: Text {
+                                    text: mainContent.genreLabel(modelData)
+                                    color: highlighted ? "#ffffff" : "#e5e7eb"
+                                    elide: Text.ElideRight
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 13
+                                }
+                                background: Rectangle {
+                                    color: highlighted ? "#2563eb" : (parent.hovered ? "#374151" : "#111827")
+                                }
+                            }
                             onActivated: {
                                 if (currentIndex >= 0 && currentIndex < model.length) {
                                     appController.selectedGenre = model[currentIndex]
@@ -278,22 +338,61 @@ FocusScope {
                             }
                         }
 
-                        SpinBox {
-                            id: minScoreSpin
-                            from: 0
-                            to: 100
-                            stepSize: 1
-                            editable: true
-                            value: appController.minScore
-                            Layout.preferredWidth: 120
-                            onValueModified: appController.minScore = value
+                        RowLayout {
+                            spacing: 6
+
+                            Text {
+                                text: "Voto minimo"
+                                color: "#f3f4f6"
+                                font.pixelSize: 12
+                                font.bold: true
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+
+                            SpinBox {
+                                id: minScoreSpin
+                                from: 0
+                                to: 100
+                                stepSize: 1
+                                editable: true
+                                value: appController.minScore
+                                Layout.preferredWidth: 120
+                                onValueModified: appController.minScore = value
+                                ToolTip.visible: hovered
+                                ToolTip.text: "Mostra solo anime con voto >= al valore impostato"
+                            }
                         }
 
                         CheckBox {
                             id: onlyTodayCheck
-                            text: "Only today"
                             checked: appController.onlyToday
                             onToggled: appController.onlyToday = checked
+                            contentItem: Text {
+                                text: "Solo episodi oggi"
+                                color: "#ffffff"
+                                font.pixelSize: 13
+                                font.bold: true
+                                leftPadding: onlyTodayCheck.indicator.width + onlyTodayCheck.spacing
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            indicator: Rectangle {
+                                implicitWidth: 18
+                                implicitHeight: 18
+                                radius: 4
+                                border.width: 1
+                                border.color: onlyTodayCheck.checked ? "#22c55e" : "#9ca3af"
+                                color: onlyTodayCheck.checked ? "#16a34a" : "#1f2937"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: onlyTodayCheck.checked ? "✓" : ""
+                                    color: "white"
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+                            }
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Filtra la lista mostrando solo gli anime con episodio in uscita oggi"
                         }
 
                         ComboBox {
@@ -309,6 +408,35 @@ FocusScope {
                                 }
                                 return 0
                             }
+                            contentItem: Text {
+                                leftPadding: 10
+                                rightPadding: sortCombo.indicator.width + sortCombo.spacing
+                                text: sortCombo.displayText
+                                color: "#f3f4f6"
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                font.pixelSize: 13
+                            }
+                            background: Rectangle {
+                                radius: 6
+                                color: "#1f2937"
+                                border.color: "#4b5563"
+                                border.width: 1
+                            }
+                            delegate: ItemDelegate {
+                                width: parent.width
+                                highlighted: sortCombo.highlightedIndex === index
+                                contentItem: Text {
+                                    text: modelData.label
+                                    color: highlighted ? "#ffffff" : "#e5e7eb"
+                                    elide: Text.ElideRight
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 13
+                                }
+                                background: Rectangle {
+                                    color: highlighted ? "#2563eb" : (parent.hovered ? "#374151" : "#111827")
+                                }
+                            }
                             onActivated: {
                                 appController.sortField = mainContent.sortOptions[currentIndex].value
                             }
@@ -323,7 +451,7 @@ FocusScope {
                         Item { Layout.fillWidth: true }
 
                         Button {
-                            text: "Reset filters"
+                            text: "Reset filtri"
                             Layout.preferredWidth: 110
                             onClicked: {
                                 searchInput.text = ""
