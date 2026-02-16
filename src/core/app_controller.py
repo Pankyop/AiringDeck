@@ -1,6 +1,6 @@
 from datetime import datetime
 import logging
-from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings
+from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings, QTimer
 from PySide6.QtQml import QQmlApplicationEngine
 from services.auth_service import AuthService
 from services.anilist_service import AniListService
@@ -35,6 +35,7 @@ class AppController(QObject):
         self._user_info = {"avatar": "https://s4.anilist.co/file/anilistcdn/user/avatar/large/default.png", "name": ""}
         self._selected_anime = None
         self._filter_text = ""
+        self._pending_filter_text = ""
         self._anime_by_id = {}
         
         # High-performance Models
@@ -43,6 +44,7 @@ class AppController(QObject):
         
         # Cache for performance
         self._weekly_schedule_cache = [[] for _ in range(7)]
+        self._full_airing_entries = []
         
         # Thread pool
         self._thread_pool = QThreadPool()
@@ -58,11 +60,16 @@ class AppController(QObject):
         self._full_anime_list = [] # Store original non-filtered list
         
         # Countdown Timer (Update every minute)
-        from PySide6.QtCore import QTimer
         self._update_timer = QTimer(self)
         self._update_timer.setInterval(60000) # 60 seconds
         self._update_timer.timeout.connect(self._update_countdowns)
         self._update_timer.start()
+
+        # Debounced filter updates to reduce model churn while typing.
+        self._filter_update_timer = QTimer(self)
+        self._filter_update_timer.setSingleShot(True)
+        self._filter_update_timer.setInterval(140)
+        self._filter_update_timer.timeout.connect(self._apply_pending_filter)
         
         # Initialize services
         self._auth_service = AuthService()
@@ -231,11 +238,21 @@ class AppController(QObject):
 
     @filterText.setter
     def filterText(self, value):
-        if self._filter_text != value:
-            self._filter_text = value
-            self._update_ui_models()
-            self.filterTextChanged.emit()
-            self.animeListChanged.emit()
+        self.setFilterText(value)
+
+    @Slot(str)
+    def setFilterText(self, value):
+        value = value or ""
+        self._pending_filter_text = value
+        self._filter_update_timer.start()
+
+    def _apply_pending_filter(self):
+        if self._filter_text == self._pending_filter_text:
+            return
+        self._filter_text = self._pending_filter_text
+        self._update_ui_models()
+        self.filterTextChanged.emit()
+        self.animeListChanged.emit()
 
     @Property('QVariantList', notify=dailyCountsChanged)
     def dailyCounts(self):
@@ -297,6 +314,7 @@ class AppController(QObject):
         self._selected_anime = None
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
+        self._full_airing_entries = []
         self._update_ui_models()
         
         self.authenticated.emit(False)
@@ -404,7 +422,7 @@ class AppController(QObject):
             self._day_models[i].update_data(day_list)
 
         # Update Full Model (Airing Only)
-        full_airing = [e for e in self._full_anime_list if e.get('calendar_day', -1) != -1]
+        full_airing = self._full_airing_entries
         if query:
             full_airing = filter_entries(full_airing, query)
         self._all_anime_model.update_data(full_airing)
@@ -415,6 +433,7 @@ class AppController(QObject):
         self._anime_by_id = {}
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
+        self._full_airing_entries = []
         
         today_weekday = datetime.now().weekday()
         
@@ -443,6 +462,7 @@ class AppController(QObject):
                 
                 self._daily_counts[weekday] += 1
                 self._weekly_schedule_cache[weekday].append(entry)
+                self._full_airing_entries.append(entry)
             else:
                 entry['calendar_day'] = -1
                 entry['airing_time_formatted'] = "TBA"

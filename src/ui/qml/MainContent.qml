@@ -8,6 +8,7 @@ import "components/Calendar"
 
 FocusScope {
     id: mainContent
+    property string pendingFilterText: ""
     
     function resolveSidebarCover(selectedAnime) {
         if (!selectedAnime || !selectedAnime.media || !selectedAnime.media.coverImage) {
@@ -108,7 +109,10 @@ FocusScope {
                                     enabled: true
                                     verticalAlignment: Text.AlignVCenter
                                     
-                                    onTextChanged: appController.filterText = text
+                                    onTextChanged: {
+                                        mainContent.pendingFilterText = text
+                                        filterDebounceTimer.restart()
+                                    }
                                     
                                     Text {
                                         text: "Search anime..."
@@ -387,6 +391,7 @@ FocusScope {
                                 fillMode: Image.PreserveAspectCrop
                                 opacity: 0.2
                                 asynchronous: true
+                                cache: false
                                 sourceSize.width: Math.max(1, Math.round(width))
                                 sourceSize.height: Math.max(1, Math.round(height))
                             }
@@ -560,6 +565,12 @@ FocusScope {
     }
     
     // Splash Screen is now handled by BootShell
+    Timer {
+        id: filterDebounceTimer
+        interval: 140
+        repeat: false
+        onTriggered: appController.setFilterText(mainContent.pendingFilterText)
+    }
     
     // Settings Dialog
     Loader {
