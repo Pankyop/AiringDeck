@@ -15,6 +15,7 @@ class AnimeModel(QAbstractListModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._entries = []
+        self._signature = ()
 
     @Property(int, notify=countChanged)
     def count(self):
@@ -53,10 +54,44 @@ class AnimeModel(QAbstractListModel):
 
     def update_data(self, new_entries):
         """Aggiorna il modello con nuovi dati"""
+        new_signature = tuple(self._entry_key(entry) for entry in new_entries)
+        old_count = len(self._entries)
+        new_count = len(new_entries)
+
+        # If row identity/order is unchanged, update in-place and notify only role changes.
+        if self._signature == new_signature:
+            if new_count == 0:
+                self._entries = new_entries
+                return
+            self._entries = new_entries
+            top_left = self.index(0, 0)
+            bottom_right = self.index(new_count - 1, 0)
+            self.dataChanged.emit(
+                top_left,
+                bottom_right,
+                [
+                    self.MediaRole,
+                    self.DisplayTitleRole,
+                    self.AiringTimeRole,
+                    self.IsTodayRole,
+                    self.ProgressRole,
+                ],
+            )
+            return
+
         self.beginResetModel()
         self._entries = new_entries
+        self._signature = new_signature
         self.endResetModel()
-        self.countChanged.emit()
+        if old_count != new_count:
+            self.countChanged.emit()
+
+    def _entry_key(self, entry):
+        media = entry.get("media", {})
+        media_id = media.get("id")
+        if media_id is not None:
+            return media_id
+        return id(entry)
 
     def get_entry(self, row):
         if 0 <= row < len(self._entries):
