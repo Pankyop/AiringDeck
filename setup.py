@@ -1,23 +1,17 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+
+native_extension = Extension(
+    "core._airingdeck_native",
+    sources=["src/core/_airingdeck_native.c"],
+)
 
 setup(
-    name="anime-calendar-qt",
-    version="1.0.0",
-    description="Desktop anime calendar with AniList integration",
-    author="Your Name",
-    author_email="your.email@example.com",
+    name="airingdeck",
+    version="3.2.2",
+    description="Desktop anime airing tracker with AniList integration",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
+    py_modules=["main"],
     python_requires=">=3.10",
-    install_requires=[
-        "PySide6>=6.7.0",
-        "requests>=2.31.0",
-        "python-dotenv>=1.0.0",
-        "keyring>=24.3.0",
-    ],
-    entry_points={
-        "console_scripts": [
-            "anime-calendar=main:main",
-        ],
-    },
+    ext_modules=[native_extension],
 )

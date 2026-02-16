@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "anime-calendar-qt"
-version = "1.0.0"
-description = "Desktop anime calendar with AniList integration"
+name = "airingdeck"
+version = "3.2.2"
+description = "Desktop anime airing tracker with AniList integration"
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.7.0",
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [tool.pyinstaller]
-name = "AnimeCalendar"
+name = "AiringDeck"
 onefile = true
 windowed = true
 icon = "resources/icons/app.ico"

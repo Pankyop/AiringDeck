@@ -1,6 +1,6 @@
-# Anime Calendar Qt
+# AiringDeck
 
-Desktop application nativa per tracking anime episode releases con AniList integration.
+Desktop app nativa per tracciare le uscite anime con integrazione AniList.
 
 ## 🚀 Features
 
@@ -17,6 +17,7 @@ Desktop application nativa per tracking anime episode releases con AniList integ
 - **UI Framework**: Qt 6.7 (PySide6)
 - **UI Language**: QML (declarative)
 - **Backend**: Python 3.11+
+- **Native Acceleration**: CPython C extension (`core._airingdeck_native`)
 - **API**: AniList GraphQL
 - **Packaging**: PyInstaller
 - **Secure Storage**: keyring
@@ -53,23 +54,50 @@ python src/main.py
 python scripts/build_windows.py
 ```
 
-Output: `dist/AnimeCalendar.exe`
+Output: `dist/AiringDeck.exe`
+
+Build ottimizzato per CPU recenti (default `avx2`, adatto a Intel 10th gen+ e AMD Zen2+/serie 4000+):
+
+```bash
+python scripts/build_windows.py --cpu-profile avx2
+```
+
+Profilo AVX-512 opzionale (solo su macchine che supportano AVX-512):
+
+```bash
+python scripts/build_windows.py --cpu-profile avx512
+```
+
+Nota: il build prova a compilare automaticamente anche l'estensione nativa C (`setup.py build_ext --inplace`) prima di creare l'exe.
+Se il compilatore C/C++ non è presente, continua con fallback Python.
+Per rendere obbligatoria la compilazione nativa:
+
+```bash
+python scripts/build_windows.py --cpu-profile avx2 --require-native
+```
+
+## ⚡ Native Optimization
+
+- Il filtro testuale della lista anime usa un modulo C (`src/core/_airingdeck_native.c`) per ridurre overhead nei loop Python.
+- Se il modulo nativo non è disponibile, l'app usa fallback automatico in puro Python (`src/core/native_accel.py`).
+- L'integrazione è trasparente: nessun cambiamento lato QML/UI.
 
 ## 📁 Project Structure
 
 ```
-anime-calendar-qt/
+airingdeck/
 ├── src/
 │   ├── main.py                 # Entry point
 │   ├── core/
-│   │   └── app_controller.py   # Main controller
+│   │   ├── app_controller.py   # Main controller
+│   │   ├── anime_model.py      # Qt list model
+│   │   └── worker.py           # Async worker wrapper
 │   ├── services/
 │   │   ├── anilist_service.py  # AniList API
 │   │   └── auth_service.py     # OAuth
-│   ├── models/                 # Data models
 │   └── ui/
 │       └── qml/                # QML UI files
-│           ├── main.qml
+│           ├── BootShell.qml
 │           └── components/
 ├── resources/
 │   ├── icons/
