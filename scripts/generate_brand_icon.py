@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QPainter, QColor, QGradient, QLinearGradient, QIcon, QPixmap
+from PySide6.QtGui import QPainter, QColor, QLinearGradient, QIcon, QPixmap
 from PySide6.QtCore import Qt, QRectF
 
 def generate_icon(output_path):

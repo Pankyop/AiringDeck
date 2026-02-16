@@ -35,6 +35,8 @@ desktop.ini
 # Logs
 *.log
 profiles/
+.coverage
+.hypothesis/
 
 # Environment
 .env
