@@ -18,7 +18,7 @@ Dialog {
     }
     
     width: 480
-    height: 520
+    height: 620
     
     standardButtons: Dialog.NoButton
     
@@ -199,6 +199,68 @@ Dialog {
                         id: titleSwitch
                         checked: appController.useEnglishTitle
                         onToggled: appController.useEnglishTitle = checked
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 98
+                color: "#2d3748"
+                radius: 12
+                opacity: 0.8
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    spacing: 12
+
+                    ColumnLayout {
+                        spacing: 2
+                        Text {
+                            text: settingsDialog.tr("Notifiche prossimi episodi", "Upcoming episode notifications")
+                            color: "white"
+                            font.pixelSize: 15
+                            font.bold: true
+                        }
+                        Text {
+                            text: settingsDialog.tr("Avvisa prima dell'uscita", "Alert before episode airing")
+                            color: "#a0aec0"
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    ColumnLayout {
+                        spacing: 6
+                        Switch {
+                            id: notificationsSwitch
+                            checked: appController.notificationsEnabled
+                            onToggled: appController.notificationsEnabled = checked
+                        }
+
+                        ComboBox {
+                            id: notifyLeadCombo
+                            enabled: notificationsSwitch.checked
+                            Layout.preferredWidth: 120
+                            model: [
+                                { label: "5 min", value: 5 },
+                                { label: "15 min", value: 15 },
+                                { label: "30 min", value: 30 },
+                                { label: "60 min", value: 60 }
+                            ]
+                            textRole: "label"
+                            currentIndex: {
+                                for (var i = 0; i < model.length; i++) {
+                                    if (model[i].value === appController.notificationLeadMinutes) {
+                                        return i
+                                    }
+                                }
+                                return 1
+                            }
+                            onActivated: appController.notificationLeadMinutes = model[currentIndex].value
+                        }
                     }
                 }
             }
