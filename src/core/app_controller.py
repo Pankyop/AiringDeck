@@ -31,6 +31,7 @@ class AppController(QObject):
     sortFieldChanged = Signal()
     sortAscendingChanged = Signal()
     availableGenresChanged = Signal()
+    appLanguageChanged = Signal()
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -48,6 +49,7 @@ class AppController(QObject):
         self._sort_field = "airing_time"
         self._sort_ascending = True
         self._available_genres = ["All genres"]
+        self._app_language = "it"
         self._anime_by_id = {}
         
         # High-performance Models
@@ -57,6 +59,8 @@ class AppController(QObject):
         # Cache for performance
         self._weekly_schedule_cache = [[] for _ in range(7)]
         self._full_airing_entries = []
+        self._ui_model_key = None
+        self._data_revision = 0
         
         # Thread pool
         self._thread_pool = QThreadPool()
@@ -71,6 +75,9 @@ class AppController(QObject):
         self._min_score = self._settings.value("min_score", 0, type=int)
         self._sort_field = self._settings.value("sort_field", "airing_time", type=str)
         self._sort_ascending = self._settings.value("sort_ascending", True, type=bool)
+        self._app_language = self._settings.value("app_language", "it", type=str)
+        if self._app_language not in {"it", "en"}:
+            self._app_language = "it"
         
         # Calendar State
         self._daily_counts = [0] * 7
@@ -85,7 +92,7 @@ class AppController(QObject):
         # Debounced filter updates to reduce model churn while typing.
         self._filter_update_timer = QTimer(self)
         self._filter_update_timer.setSingleShot(True)
-        self._filter_update_timer.setInterval(140)
+        self._filter_update_timer.setInterval(260)
         self._filter_update_timer.timeout.connect(self._apply_pending_filter)
         
         # Initialize services
@@ -116,7 +123,7 @@ class AppController(QObject):
             # Then fetch fresh data (Non-blocking)
             self._fetch_user_info()
         else:
-            self._set_loading(False, "Pronto")
+            self._set_loading(False, self._msg_ready())
 
     def _load_offline_cache(self):
         """Load cached data from past sessions"""
@@ -149,10 +156,16 @@ class AppController(QObject):
         self._settings.setValue("cached_anime_list", json.dumps(self._full_anime_list))
 
     def _set_loading(self, loading: bool, message: str = ""):
+        loading_changed = self._is_loading != loading
+        message_changed = self._status_message != message
+        if not loading_changed and not message_changed:
+            return
         self._is_loading = loading
         self._status_message = message
-        self.isLoadingChanged.emit()
-        self.statusMessageChanged.emit()
+        if loading_changed:
+            self.isLoadingChanged.emit()
+        if message_changed:
+            self.statusMessageChanged.emit()
 
     def _on_auth_completed(self, token: str):
         """Handle successful authentication"""
@@ -163,11 +176,11 @@ class AppController(QObject):
     def _on_auth_failed(self, error: str):
         """Handle authentication failure"""
         logger.warning("Auth failed: %s", error)
-        self._set_loading(False, f"Login failed: {error}")
+        self._set_loading(False, self._msg_login_failed(error))
         
     def _fetch_user_info(self):
         """Fetch user info from AniList (Async)"""
-        self._set_loading(True, "Fetching user profile...")
+        self._set_loading(True, self._msg_fetching_profile())
         
         worker = Worker(self._anilist_service.get_viewer_info)
         worker.signals.result.connect(self._on_user_info_result)
@@ -188,13 +201,13 @@ class AppController(QObject):
             self._save_offline_cache()
             
             avatar_url = self.userAvatar
-            self._set_loading(False, f"Logged in as {user['name']} (Avatar URL set)")
+            self._set_loading(False, self._msg_logged_in(user["name"]))
             logger.info("Logged in as %s, avatar=%s", user["name"], avatar_url)
             
             # Fetch watching list
             self.syncAnimeList()
         else:
-            self._set_loading(False, "Failed to load profile")
+            self._set_loading(False, self._msg_failed_profile())
 
     def _extract_error_text(self, err) -> str:
         """Normalize worker error payloads to readable text."""
@@ -209,15 +222,30 @@ class AppController(QObject):
 
         lower = err_text.lower()
         if "timeout" in lower:
-            message = "Request timeout. Check connection and retry."
+            message = self._tr(
+                "Timeout della richiesta. Controlla la connessione e riprova.",
+                "Request timeout. Check connection and retry.",
+            )
         elif "connectionerror" in lower or "unable to reach" in lower:
-            message = "Network unavailable. Check internet connection."
+            message = self._tr(
+                "Rete non disponibile. Controlla la connessione internet.",
+                "Network unavailable. Check internet connection.",
+            )
         elif "http429" in lower or "rate limit" in lower:
-            message = "AniList rate limit reached. Retry in a moment."
+            message = self._tr(
+                "Limite AniList raggiunto. Riprova tra poco.",
+                "AniList rate limit reached. Retry in a moment.",
+            )
         elif "http401" in lower or "not authenticated" in lower:
-            message = "Session expired. Please login again."
+            message = self._tr(
+                "Sessione scaduta. Effettua nuovamente il login.",
+                "Session expired. Please login again.",
+            )
         else:
-            message = "Unexpected error while syncing data."
+            message = self._tr(
+                "Errore imprevisto durante la sincronizzazione.",
+                "Unexpected error while syncing data.",
+            )
 
         self._set_loading(False, message)
         # If this was a token error, we might want to logout
@@ -236,6 +264,23 @@ class AppController(QObject):
     @Property(str, notify=statusMessageChanged)
     def statusMessage(self):
         return self._status_message
+
+    @Property(str, notify=appLanguageChanged)
+    def appLanguage(self):
+        return self._app_language
+
+    @appLanguage.setter
+    def appLanguage(self, value):
+        value = (value or "it").lower().strip()
+        if value not in {"it", "en"}:
+            value = "it"
+        if self._app_language == value:
+            return
+        self._app_language = value
+        self._settings.setValue("app_language", value)
+        self._update_countdowns()
+        self.appLanguageChanged.emit()
+        self.statusMessageChanged.emit()
     
     @Property('QVariantMap', notify=userInfoChanged)
     def userInfo(self):
@@ -260,6 +305,8 @@ class AppController(QObject):
     @Slot(str)
     def setFilterText(self, value):
         value = value or ""
+        if value == self._pending_filter_text:
+            return
         self._pending_filter_text = value
         self._filter_update_timer.start()
 
@@ -398,7 +445,7 @@ class AppController(QObject):
     def login(self):
         """Trigger AniList OAuth login"""
         logger.info("Login requested")
-        self._set_loading(True, "Waiting for browser login...")
+        self._set_loading(True, self._msg_waiting_browser_login())
         self._auth_service.start_auth_flow()
     
     @Slot()
@@ -426,7 +473,7 @@ class AppController(QObject):
         self.selectedAnimeChanged.emit()
         self.dailyCountsChanged.emit()
         self.animeListChanged.emit()
-        self._set_loading(False, "Logged out")
+        self._set_loading(False, self._msg_logged_out())
 
     @Slot()
     def toggleSortDirection(self):
@@ -481,7 +528,7 @@ class AppController(QObject):
         if not user_id:
             return
             
-        self._set_loading(True, "Syncing anime list...")
+        self._set_loading(True, self._msg_syncing_anime_list())
         worker = Worker(self._anilist_service.get_watching_anime, user_id)
         worker.signals.result.connect(self._on_anime_list_result)
         worker.signals.error.connect(self._on_error)
@@ -494,6 +541,11 @@ class AppController(QObject):
         selected = self._anime_by_id.get(anime_id)
         if selected is None:
             return
+        current = self._selected_anime
+        current_id = (current or {}).get("media", {}).get("id")
+        new_id = selected.get("media", {}).get("id")
+        if current_id == new_id and current is selected:
+            return
         self._selected_anime = selected
         self.selectedAnimeChanged.emit()
 
@@ -501,8 +553,8 @@ class AppController(QObject):
         """Standardized title selection based on settings"""
         titles = media.get('title', {})
         if self._use_english_title:
-            return titles.get('english') or titles.get('romaji') or "Unknown Title"
-        return titles.get('romaji') or titles.get('english') or "Unknown Title"
+            return titles.get('english') or titles.get('romaji') or self._tr("Titolo sconosciuto", "Unknown Title")
+        return titles.get('romaji') or titles.get('english') or self._tr("Titolo sconosciuto", "Unknown Title")
 
     def _format_countdown(self, airing_at):
         """Format countdown with support for days, hours, minutes"""
@@ -514,9 +566,9 @@ class AppController(QObject):
         seconds = diff.total_seconds()
         
         if seconds <= -3600: # Over an hour ago
-            return f"Aired {time_str}"
+            return self._tr(f"Già uscito alle {time_str}", f"Aired at {time_str}")
         elif seconds <= 0: # Within the last hour
-            return "Airing Now"
+            return self._tr("In onda ora", "Airing now")
         
         days = int(seconds // 86400)
         hours = int((seconds % 86400) // 3600)
@@ -553,6 +605,8 @@ class AppController(QObject):
                     any_changed = True
 
         if any_changed:
+            self._data_revision += 1
+            self._ui_model_key = None
             self._update_ui_models()
             self.animeListChanged.emit()
 
@@ -561,6 +615,19 @@ class AppController(QObject):
         query = self._filter_text.lower().strip()
         selected_genre = self._selected_genre.lower().strip()
         today_weekday = datetime.now().weekday()
+        model_key = (
+            self._data_revision,
+            query,
+            selected_genre,
+            self._only_today,
+            self._min_score,
+            self._sort_field,
+            self._sort_ascending,
+            today_weekday,
+        )
+        if model_key == self._ui_model_key:
+            return
+        self._ui_model_key = model_key
 
         filtered_counts = [0] * 7
         # Update Individual Day Models
@@ -629,6 +696,8 @@ class AppController(QObject):
     def _on_anime_list_result(self, anime_list, from_cache=False):
         """Handle anime list result and process for calendar"""
         self._full_anime_list = anime_list
+        self._data_revision += 1
+        self._ui_model_key = None
         self._anime_by_id = {}
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
@@ -665,7 +734,7 @@ class AppController(QObject):
                 self._full_airing_entries.append(entry)
             else:
                 entry['calendar_day'] = -1
-                entry['airing_time_formatted'] = "TBA"
+                entry['airing_time_formatted'] = self._tr("Da annunciare", "TBA")
                 entry['is_today'] = False
 
             for genre in media.get("genres", []):
@@ -686,5 +755,35 @@ class AppController(QObject):
 
         self._update_ui_models()
         self.animeListChanged.emit()
-        self._set_loading(False, f"Synced {len(anime_list)} anime")
+        self._set_loading(False, self._msg_synced_count(len(anime_list)))
         logger.info("Synced %d anime. Day counts: %s", len(anime_list), self._daily_counts)
+
+    def _tr(self, it_text: str, en_text: str) -> str:
+        return en_text if self._app_language == "en" else it_text
+
+    def _msg_ready(self) -> str:
+        return self._tr("Pronto", "Ready")
+
+    def _msg_login_failed(self, error: str) -> str:
+        return self._tr(f"Login fallito: {error}", f"Login failed: {error}")
+
+    def _msg_fetching_profile(self) -> str:
+        return self._tr("Recupero profilo utente...", "Fetching user profile...")
+
+    def _msg_logged_in(self, username: str) -> str:
+        return self._tr(f"Accesso eseguito come {username}", f"Logged in as {username}")
+
+    def _msg_failed_profile(self) -> str:
+        return self._tr("Impossibile caricare il profilo", "Failed to load profile")
+
+    def _msg_waiting_browser_login(self) -> str:
+        return self._tr("In attesa del login dal browser...", "Waiting for browser login...")
+
+    def _msg_logged_out(self) -> str:
+        return self._tr("Disconnesso", "Logged out")
+
+    def _msg_syncing_anime_list(self) -> str:
+        return self._tr("Sincronizzazione lista anime...", "Syncing anime list...")
+
+    def _msg_synced_count(self, count: int) -> str:
+        return self._tr(f"Sincronizzati {count} anime", f"Synced {count} anime")

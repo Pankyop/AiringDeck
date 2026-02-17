@@ -5,7 +5,7 @@ import QtQuick.Layouts
 Dialog {
     id: aboutDialog
     modal: true
-    title: "About AiringDeck"
+    title: appController.appLanguage === "en" ? "About AiringDeck" : "Informazioni su AiringDeck"
     
     width: 400
     height: 450
@@ -63,7 +63,9 @@ Dialog {
         
         Text {
             Layout.fillWidth: true
-            text: "Un tracker desktop moderno e performante per le tue uscite anime, integrato con AniList."
+            text: appController.appLanguage === "en"
+                  ? "A modern and high-performance desktop tracker for your anime releases, integrated with AniList."
+                  : "Un tracker desktop moderno e performante per le tue uscite anime, integrato con AniList."
             color: "#9ca3af"
             font.pixelSize: 14
             horizontalAlignment: Text.AlignHCenter
@@ -84,7 +86,7 @@ Dialog {
             }
             
             Text {
-                text: "Built with PySide6 & QML"
+                text: appController.appLanguage === "en" ? "Built with PySide6 & QML" : "Creato con PySide6 & QML"
                 color: "#4b5563"
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignHCenter
@@ -92,7 +94,7 @@ Dialog {
         }
         
         Button {
-            text: "CHIUDI"
+            text: appController.appLanguage === "en" ? "CLOSE" : "CHIUDI"
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 120
             onClicked: aboutDialog.close()

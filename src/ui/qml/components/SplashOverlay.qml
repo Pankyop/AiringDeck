@@ -51,7 +51,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
             }
             Text {
-                text: appController.statusMessage || "Sincronizzazione dati..."
+                text: appController.statusMessage || (appController.appLanguage === "en" ? "Synchronizing data..." : "Sincronizzazione dati...")
                 color: "#64748b"
                 font.pixelSize: 14
                 Layout.alignment: Qt.AlignHCenter

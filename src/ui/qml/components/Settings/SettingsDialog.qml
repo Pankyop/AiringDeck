@@ -5,8 +5,12 @@ import QtQuick.Layouts
 Dialog {
     id: settingsDialog
     modal: true
+    property bool isEnglishUi: appController.appLanguage === "en"
     
     property point lastMousePos: Qt.point(0, 0)
+    function tr(itText, enText) {
+        return settingsDialog.isEnglishUi ? enText : itText
+    }
     
     onOpened: {
         x = (parent.width - width) / 2
@@ -66,7 +70,7 @@ Dialog {
             anchors.rightMargin: 20
             
             Text {
-                text: "⚙️ IMPOSTAZIONI"
+                text: "⚙️ " + settingsDialog.tr("IMPOSTAZIONI", "SETTINGS")
                 color: "#ffffff"
                 font.pixelSize: 18
                 font.bold: true
@@ -113,11 +117,54 @@ Dialog {
             spacing: 12
             
             Text {
-                text: "INTERFACCIA"
+                text: settingsDialog.tr("INTERFACCIA", "INTERFACE")
                 color: "#718096"
                 font.pixelSize: 11
                 font.bold: true
                 font.letterSpacing: 1.5
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 82
+                color: "#2d3748"
+                radius: 12
+                opacity: 0.8
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    spacing: 12
+
+                    ColumnLayout {
+                        spacing: 2
+                        Text {
+                            text: settingsDialog.tr("Lingua applicazione", "Application language")
+                            color: "white"
+                            font.pixelSize: 15
+                            font.bold: true
+                        }
+                        Text {
+                            text: settingsDialog.tr("Cambia i testi dell'interfaccia (IT/EN)", "Change interface texts (IT/EN)")
+                            color: "#a0aec0"
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    ComboBox {
+                        id: uiLanguageCombo
+                        Layout.preferredWidth: 150
+                        model: [
+                            { label: "Italiano", value: "it" },
+                            { label: "English", value: "en" }
+                        ]
+                        textRole: "label"
+                        currentIndex: appController.appLanguage === "en" ? 1 : 0
+                        onActivated: appController.appLanguage = model[currentIndex].value
+                    }
+                }
             }
             
             Rectangle {
@@ -134,13 +181,13 @@ Dialog {
                     ColumnLayout {
                         spacing: 2
                         Text {
-                            text: "Titoli in Inglese"
+                            text: settingsDialog.tr("Titoli in Inglese", "English titles")
                             color: "white"
                             font.pixelSize: 15
                             font.bold: true
                         }
                         Text {
-                            text: "Usa nomi occidentali quando disponibili"
+                            text: settingsDialog.tr("Usa nomi occidentali quando disponibili", "Use western names when available")
                             color: "#a0aec0"
                             font.pixelSize: 12
                         }
@@ -163,7 +210,7 @@ Dialog {
             spacing: 12
             
             Text {
-                text: "PROFILO ANILIST"
+                text: settingsDialog.tr("PROFILO ANILIST", "ANILIST PROFILE")
                 color: "#718096"
                 font.pixelSize: 11
                 font.bold: true
@@ -201,13 +248,15 @@ Dialog {
                     ColumnLayout {
                         spacing: 2
                         Text {
-                            text: appController.isAuthenticated ? appController.userInfo.name : "Non Connesso"
+                            text: appController.isAuthenticated ? appController.userInfo.name : settingsDialog.tr("Non connesso", "Not connected")
                             color: "white"
                             font.bold: true
                             font.pixelSize: 17
                         }
                         Text {
-                            text: appController.isAuthenticated ? "Sincronizzazione Attiva" : "Accedi per vedere i tuoi anime"
+                            text: appController.isAuthenticated
+                                  ? settingsDialog.tr("Sincronizzazione attiva", "Active synchronization")
+                                  : settingsDialog.tr("Accedi per vedere i tuoi anime", "Login to view your anime list")
                             color: "#a0aec0"
                             font.pixelSize: 12
                         }
@@ -217,7 +266,9 @@ Dialog {
                     
                     Button {
                         id: authBtn
-                        text: appController.isAuthenticated ? "Logout" : "Login"
+                        text: appController.isAuthenticated
+                              ? settingsDialog.tr("Logout", "Logout")
+                              : settingsDialog.tr("Login", "Login")
                         implicitWidth: 100
                         implicitHeight: 38
                         
@@ -266,7 +317,7 @@ Dialog {
                 Layout.alignment: Qt.AlignHCenter
             }
             Text {
-                text: "Creato con PySide6 & QML"
+                text: settingsDialog.tr("Creato con PySide6 & QML", "Built with PySide6 & QML")
                 color: "#a0aec0"
                 font.pixelSize: 10
                 Layout.alignment: Qt.AlignHCenter
@@ -278,7 +329,7 @@ Dialog {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 200
             Layout.preferredHeight: 45
-            text: "CONFERMA E CHIUDI"
+            text: settingsDialog.tr("CONFERMA E CHIUDI", "CONFIRM AND CLOSE")
             
             background: Rectangle {
                 color: closeBtn.hovered ? "#4a5568" : "#2d3748"
