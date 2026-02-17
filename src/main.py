@@ -36,6 +36,7 @@ def get_resource_path(relative_path):
 def main():
     profiling_mode = _is_truthy(os.getenv("AIRINGDECK_PROFILE"))
     auto_exit_ms = int(os.getenv("AIRINGDECK_AUTO_EXIT_MS", "0") or "0")
+    test_notification_ms = int(os.getenv("AIRINGDECK_TEST_NOTIFICATION_MS", "0") or "0")
 
     # Set AppUserModelID for Windows Taskbar consistency
     if os.name == 'nt':
@@ -96,6 +97,10 @@ def main():
     if auto_exit_ms > 0:
         logger.info("Auto-exit timer enabled: %dms", auto_exit_ms)
         QTimer.singleShot(auto_exit_ms, app.quit)
+
+    if test_notification_ms > 0:
+        logger.info("Test notification timer enabled: %dms", test_notification_ms)
+        QTimer.singleShot(test_notification_ms, controller.sendTestNotification)
 
     # Run application
     return app.exec()
