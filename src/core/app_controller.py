@@ -2,11 +2,12 @@ from datetime import datetime
 import logging
 from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings, QTimer
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from services.auth_service import AuthService
 from services.anilist_service import AniListService
 from core.worker import Worker
 from core.anime_model import AnimeModel
-from core.native_accel import filter_entries, is_native_available
+from core.native_accel import filter_entries_advanced, is_native_available
 from version import APP_VERSION
 
 
@@ -32,6 +33,8 @@ class AppController(QObject):
     sortAscendingChanged = Signal()
     availableGenresChanged = Signal()
     appLanguageChanged = Signal()
+    notificationsEnabledChanged = Signal()
+    notificationLeadMinutesChanged = Signal()
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -50,6 +53,11 @@ class AppController(QObject):
         self._sort_ascending = True
         self._available_genres = ["All genres"]
         self._app_language = "it"
+        self._notifications_enabled = True
+        self._notification_lead_minutes = 15
+        self._notified_episode_times = {}
+        self._last_notification_media_id = None
+        self._tray_icon = None
         self._anime_by_id = {}
         
         # High-performance Models
@@ -78,6 +86,10 @@ class AppController(QObject):
         self._app_language = self._settings.value("app_language", "it", type=str)
         if self._app_language not in {"it", "en"}:
             self._app_language = "it"
+        self._notifications_enabled = self._settings.value("notifications_enabled", True, type=bool)
+        self._notification_lead_minutes = self._settings.value("notification_lead_minutes", 15, type=int)
+        if self._notification_lead_minutes not in {5, 15, 30, 60}:
+            self._notification_lead_minutes = 15
         
         # Calendar State
         self._daily_counts = [0] * 7
@@ -86,7 +98,7 @@ class AppController(QObject):
         # Countdown Timer (Update every minute)
         self._update_timer = QTimer(self)
         self._update_timer.setInterval(60000) # 60 seconds
-        self._update_timer.timeout.connect(self._update_countdowns)
+        self._update_timer.timeout.connect(self._on_minute_tick)
         self._update_timer.start()
 
         # Debounced filter updates to reduce model churn while typing.
@@ -102,6 +114,7 @@ class AppController(QObject):
         # Connect signals
         self._auth_service.auth_completed.connect(self._on_auth_completed)
         self._auth_service.auth_failed.connect(self._on_auth_failed)
+        self._init_tray_icon()
         
         # Lazy initialization via explicit call
         # No heavy work in __init__
@@ -281,6 +294,43 @@ class AppController(QObject):
         self._update_countdowns()
         self.appLanguageChanged.emit()
         self.statusMessageChanged.emit()
+
+    @Property(bool, notify=notificationsEnabledChanged)
+    def notificationsEnabled(self):
+        return self._notifications_enabled
+
+    @notificationsEnabled.setter
+    def notificationsEnabled(self, value):
+        value = bool(value)
+        if self._notifications_enabled == value:
+            return
+        self._notifications_enabled = value
+        self._settings.setValue("notifications_enabled", value)
+        if not value:
+            self._last_notification_media_id = None
+        self.notificationsEnabledChanged.emit()
+        if value:
+            self._check_episode_notifications()
+
+    @Property(int, notify=notificationLeadMinutesChanged)
+    def notificationLeadMinutes(self):
+        return self._notification_lead_minutes
+
+    @notificationLeadMinutes.setter
+    def notificationLeadMinutes(self, value):
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            value = 15
+        if value not in {5, 15, 30, 60}:
+            value = 15
+        if self._notification_lead_minutes == value:
+            return
+        self._notification_lead_minutes = value
+        self._settings.setValue("notification_lead_minutes", value)
+        self.notificationLeadMinutesChanged.emit()
+        if self._notifications_enabled:
+            self._check_episode_notifications()
     
     @Property('QVariantMap', notify=userInfoChanged)
     def userInfo(self):
@@ -459,6 +509,8 @@ class AppController(QObject):
         self._user_info = {}
         self._full_anime_list = []
         self._anime_by_id = {}
+        self._notified_episode_times.clear()
+        self._last_notification_media_id = None
         self._selected_anime = None
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
@@ -610,6 +662,10 @@ class AppController(QObject):
             self._update_ui_models()
             self.animeListChanged.emit()
 
+    def _on_minute_tick(self):
+        self._update_countdowns()
+        self._check_episode_notifications()
+
     def _update_ui_models(self):
         """Sync Python data to QML models with filtering"""
         query = self._filter_text.lower().strip()
@@ -653,20 +709,14 @@ class AppController(QObject):
             self.dailyCountsChanged.emit()
 
     def _apply_filters(self, entries, query: str, selected_genre: str):
-        filtered = entries
-        if query:
-            filtered = filter_entries(filtered, query)
-        if selected_genre and selected_genre != "all genres":
-            filtered = [
-                e for e in filtered
-                if any((g or "").lower() == selected_genre for g in e.get("media", {}).get("genres", []))
-            ]
-        if self._min_score > 0:
-            filtered = [
-                e for e in filtered
-                if (e.get("media", {}).get("averageScore") or 0) >= self._min_score
-            ]
-        return filtered
+        return filter_entries_advanced(
+            entries,
+            query,
+            selected_genre,
+            self._min_score,
+            self._only_today,
+            datetime.now().weekday(),
+        )
 
     def _sort_entries(self, entries):
         if len(entries) < 2:
@@ -755,8 +805,95 @@ class AppController(QObject):
 
         self._update_ui_models()
         self.animeListChanged.emit()
+        self._check_episode_notifications()
         self._set_loading(False, self._msg_synced_count(len(anime_list)))
         logger.info("Synced %d anime. Day counts: %s", len(anime_list), self._daily_counts)
+
+    def _init_tray_icon(self):
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            logger.info("System tray not available: desktop notifications disabled")
+            return
+        app = QApplication.instance()
+        if app is None:
+            return
+        self._tray_icon = QSystemTrayIcon(self)
+        icon = app.windowIcon()
+        if icon and not icon.isNull():
+            self._tray_icon.setIcon(icon)
+        self._tray_icon.messageClicked.connect(self._on_tray_message_clicked)
+        self._tray_icon.show()
+
+    def _on_tray_message_clicked(self):
+        media_id = self._last_notification_media_id
+        if media_id is None:
+            return
+        self.selectAnime(int(media_id))
+
+    @Slot()
+    def sendTestNotification(self):
+        """Emit a manual test notification for diagnostics."""
+        if self._tray_icon is None:
+            logger.info("Test notification skipped: system tray unavailable")
+            return
+        summary = self._tr("Notifica di prova", "Test notification")
+        body = self._tr(
+            "Questa è una notifica di test di AiringDeck.",
+            "This is an AiringDeck test notification.",
+        )
+        self._tray_icon.showMessage(summary, body, QSystemTrayIcon.Information, 8000)
+        logger.info("Test notification dispatched")
+
+    def _prune_notified_episode_cache(self, now_ts: int):
+        threshold = now_ts - 7200
+        self._notified_episode_times = {
+            key: airing_at
+            for key, airing_at in self._notified_episode_times.items()
+            if airing_at >= threshold
+        }
+
+    def _check_episode_notifications(self):
+        if not self._notifications_enabled:
+            return
+        if self._tray_icon is None:
+            return
+        if not self._full_airing_entries:
+            return
+
+        now_ts = int(datetime.now().timestamp())
+        self._prune_notified_episode_cache(now_ts)
+        lead_seconds = max(60, int(self._notification_lead_minutes) * 60)
+
+        for entry in self._full_airing_entries:
+            media = entry.get("media", {})
+            airing = media.get("nextAiringEpisode")
+            if not airing:
+                continue
+            airing_at = int(airing.get("airingAt") or 0)
+            if airing_at <= now_ts:
+                continue
+            delta = airing_at - now_ts
+            if delta > lead_seconds:
+                continue
+
+            media_id = media.get("id")
+            episode = int(airing.get("episode") or 0)
+            if media_id is None or episode <= 0:
+                continue
+
+            key = f"{media_id}:{episode}:{airing_at}"
+            if key in self._notified_episode_times:
+                continue
+
+            title = entry.get("display_title") or self._tr("Titolo sconosciuto", "Unknown Title")
+            time_str = datetime.fromtimestamp(airing_at).strftime("%H:%M")
+            summary = self._tr("Prossimo episodio", "Upcoming episode")
+            body = self._tr(
+                f"{title}\nEp {episode} alle {time_str}",
+                f"{title}\nEp {episode} at {time_str}",
+            )
+            self._tray_icon.showMessage(summary, body, QSystemTrayIcon.Information, 10000)
+            self._notified_episode_times[key] = airing_at
+            self._last_notification_media_id = int(media_id)
 
     def _tr(self, it_text: str, en_text: str) -> str:
         return en_text if self._app_language == "en" else it_text
