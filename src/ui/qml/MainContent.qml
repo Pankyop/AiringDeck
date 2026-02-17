@@ -1,20 +1,30 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 
 import "components"
 import "components/Calendar"
 
 FocusScope {
     id: mainContent
-    property string pendingFilterText: ""
+    property bool isEnglishUi: appController.appLanguage === "en"
+    readonly property int sidebarMainDecodeWidth: 800
+    readonly property int sidebarMainDecodeHeight: 450
+    property string sidebarCoverSource: ""
+    property string pendingSidebarCoverSource: ""
+    property var weekdays: mainContent.isEnglishUi
+        ? ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        : ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
     property var sortOptions: [
-        { label: "Ordina: Uscita", value: "airing_time" },
-        { label: "Ordina: Titolo", value: "title" },
-        { label: "Ordina: Progresso", value: "progress" },
-        { label: "Ordina: Voto", value: "score" }
+        { label: mainContent.tr("Ordina: Uscita", "Sort: Airing"), value: "airing_time" },
+        { label: mainContent.tr("Ordina: Titolo", "Sort: Title"), value: "title" },
+        { label: mainContent.tr("Ordina: Progresso", "Sort: Progress"), value: "progress" },
+        { label: mainContent.tr("Ordina: Voto", "Sort: Score"), value: "score" }
     ]
+
+    function tr(itText, enText) {
+        return mainContent.isEnglishUi ? enText : itText
+    }
     
     function resolveSidebarCover(selectedAnime) {
         if (!selectedAnime || !selectedAnime.media || !selectedAnime.media.coverImage) {
@@ -22,6 +32,23 @@ FocusScope {
         }
         var cover = selectedAnime.media.coverImage
         return cover.extraLarge || cover.large || cover.medium || ""
+    }
+
+    function refreshSidebarCoverSource() {
+        var nextSource = mainContent.resolveSidebarCover(appController.selectedAnime)
+        if (nextSource === "") {
+            sidebarCoverUpdateTimer.stop()
+            pendingSidebarCoverSource = ""
+            if (sidebarCoverSource !== "") {
+                sidebarCoverSource = ""
+            }
+            return
+        }
+        if (nextSource === sidebarCoverSource && nextSource === pendingSidebarCoverSource) {
+            return
+        }
+        pendingSidebarCoverSource = nextSource
+        sidebarCoverUpdateTimer.restart()
     }
 
     function genreIndexOf(value) {
@@ -35,7 +62,10 @@ FocusScope {
 
     function genreLabel(value) {
         if (!value || value === "All genres") {
-            return "Tutti i generi"
+            return mainContent.tr("Tutti i generi", "All genres")
+        }
+        if (mainContent.isEnglishUi) {
+            return value
         }
         var map = {
             "Action": "Azione",
@@ -153,12 +183,11 @@ FocusScope {
                                     verticalAlignment: Text.AlignVCenter
                                     
                                     onTextChanged: {
-                                        mainContent.pendingFilterText = text
-                                        filterDebounceTimer.restart()
+                                        appController.setFilterText(text)
                                     }
                                     
                                     Text {
-                                        text: "Search anime..."
+                                        text: mainContent.tr("Cerca anime...", "Search anime...")
                                         color: "#6b7280"
                                         visible: parent.text.length === 0 && !searchInput.activeFocus
                                         font.pixelSize: 14
@@ -199,7 +228,7 @@ FocusScope {
                             }
                             
                             ToolTip.visible: syncMouseArea.containsMouse
-                            ToolTip.text: "Synchronize List"
+                            ToolTip.text: mainContent.tr("Sincronizza lista", "Synchronize list")
                             ToolTip.delay: 500
                         }
                         
@@ -230,12 +259,12 @@ FocusScope {
                                 y: parent.height
                                 
                                 MenuItem {
-                                    text: "Settings"
+                                    text: mainContent.tr("Impostazioni", "Settings")
                                     onTriggered: settingsDialog.open()
                                 }
                                 
                                 MenuItem {
-                                    text: "Logout"
+                                    text: mainContent.tr("Logout", "Logout")
                                     onTriggered: appController.logout()
                                 }
                             }
@@ -262,7 +291,7 @@ FocusScope {
                                 }
                                 
                                 Text {
-                                    text: appController.isAuthenticated ? (appController.userInfo.name || "User") : "🔐 Login"
+                                    text: appController.isAuthenticated ? (appController.userInfo.name || "User") : ("🔐 " + mainContent.tr("Login", "Login"))
                                     color: "#ffffff"
                                     font.pixelSize: 13
                                     font.bold: !appController.isAuthenticated
@@ -342,7 +371,7 @@ FocusScope {
                             spacing: 6
 
                             Text {
-                                text: "Voto minimo"
+                                text: mainContent.tr("Voto minimo", "Min score")
                                 color: "#f3f4f6"
                                 font.pixelSize: 12
                                 font.bold: true
@@ -359,7 +388,10 @@ FocusScope {
                                 Layout.preferredWidth: 120
                                 onValueModified: appController.minScore = value
                                 ToolTip.visible: hovered
-                                ToolTip.text: "Mostra solo anime con voto >= al valore impostato"
+                                ToolTip.text: mainContent.tr(
+                                                  "Mostra solo anime con voto >= al valore impostato",
+                                                  "Show only anime with score >= selected value"
+                                              )
                             }
                         }
 
@@ -368,7 +400,7 @@ FocusScope {
                             checked: appController.onlyToday
                             onToggled: appController.onlyToday = checked
                             contentItem: Text {
-                                text: "Solo episodi oggi"
+                                text: mainContent.tr("Solo episodi oggi", "Only episodes today")
                                 color: "#ffffff"
                                 font.pixelSize: 13
                                 font.bold: true
@@ -392,7 +424,10 @@ FocusScope {
                                 }
                             }
                             ToolTip.visible: hovered
-                            ToolTip.text: "Filtra la lista mostrando solo gli anime con episodio in uscita oggi"
+                            ToolTip.text: mainContent.tr(
+                                              "Filtra la lista mostrando solo gli anime con episodio in uscita oggi",
+                                              "Filter list to anime with an episode airing today"
+                                          )
                         }
 
                         ComboBox {
@@ -451,11 +486,10 @@ FocusScope {
                         Item { Layout.fillWidth: true }
 
                         Button {
-                            text: "Reset filtri"
+                            text: mainContent.tr("Reset filtri", "Reset filters")
                             Layout.preferredWidth: 110
                             onClicked: {
                                 searchInput.text = ""
-                                mainContent.pendingFilterText = ""
                                 appController.resetAllFilters()
                             }
                         }
@@ -475,7 +509,7 @@ FocusScope {
                         anchors.margins: 25
                         
                         Repeater {
-                            model: ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+                            model: mainContent.weekdays
                             
                             delegate: ColumnLayout {
                                 Layout.fillWidth: true
@@ -509,7 +543,7 @@ FocusScope {
                                         radius: 4
                                         Text {
                                             anchors.centerIn: parent
-                                            text: "OGGI"
+                                            text: mainContent.tr("OGGI", "TODAY")
                                             color: "white"
                                             font.pixelSize: 10
                                             font.bold: true
@@ -547,7 +581,7 @@ FocusScope {
                                     
                                     // Empty state for the day
                                     Text {
-                                        text: "Nessuna uscita programmata"
+                                        text: mainContent.tr("Nessuna uscita programmata", "No scheduled releases")
                                         color: "#4b5563"
                                         font.italic: true
                                         font.pixelSize: 14
@@ -605,38 +639,17 @@ FocusScope {
                             color: "#111827"
                             clip: true
                             
-                            // Background Blur
-                            Image {
-                                id: sidebarBgBlur
-                                anchors.fill: parent
-                                source: mainContent.resolveSidebarCover(appController.selectedAnime)
-                                fillMode: Image.PreserveAspectCrop
-                                opacity: 0.2
-                                asynchronous: true
-                                cache: false
-                                sourceSize.width: Math.max(1, Math.round(width))
-                                sourceSize.height: Math.max(1, Math.round(height))
-                            }
-                            
-                            MultiEffect {
-                                anchors.fill: sidebarBgBlur
-                                source: sidebarBgBlur
-                                visible: sidebarBgBlur.status === Image.Ready && sidebarBgBlur.source !== ""
-                                enabled: visible
-                                blurEnabled: true
-                                blur: 0.6
-                            }
-                            
                             // Focused Foreground Image
                             Image {
                                 id: sidebarMainImage
                                 anchors.fill: parent
-                                source: mainContent.resolveSidebarCover(appController.selectedAnime)
+                                source: mainContent.sidebarCoverSource
                                 fillMode: Image.PreserveAspectFit
                                 asynchronous: true
                                 smooth: true
-                                sourceSize.width: Math.max(1, Math.round(width))
-                                sourceSize.height: Math.max(1, Math.round(height))
+                                cache: false
+                                sourceSize.width: mainContent.sidebarMainDecodeWidth
+                                sourceSize.height: mainContent.sidebarMainDecodeHeight
                                 
                                 OpacityAnimator on opacity {
                                     from: 0; to: 1; duration: 400
@@ -644,10 +657,17 @@ FocusScope {
                                 }
                             }
 
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "#0b1220"
+                                opacity: 0.12
+                                visible: sidebarMainImage.status === Image.Ready
+                            }
+
                             Text {
                                 anchors.centerIn: parent
                                 visible: sidebarMainImage.source === "" || sidebarMainImage.status === Image.Error
-                                text: "Cover non disponibile"
+                                text: mainContent.tr("Cover non disponibile", "Cover unavailable")
                                 color: "#6b7280"
                                 font.pixelSize: 14
                             }
@@ -668,7 +688,7 @@ FocusScope {
                             Text {
                                 Layout.fillWidth: true
                                 visible: !!appController.selectedAnime.media && !!appController.selectedAnime.media.nextAiringEpisode
-                                text: "Prossimo Episodio: " + appController.selectedAnime.airing_time_formatted
+                                text: mainContent.tr("Prossimo Episodio: ", "Next Episode: ") + appController.selectedAnime.airing_time_formatted
                                 color: "#34d399"
                                 font.pixelSize: 14
                                 font.bold: true
@@ -687,9 +707,9 @@ FocusScope {
                                 
                                 ColumnLayout {
                                     spacing: 2
-                                    Text { text: "Progress"; color: "#9ca3af"; font.pixelSize: 11 }
+                                    Text { text: mainContent.tr("Progresso", "Progress"); color: "#9ca3af"; font.pixelSize: 11 }
                                     Text { 
-                                        text: "Episodio " + (appController.selectedAnime.progress || 0)
+                                        text: mainContent.tr("Episodio ", "Episode ") + (appController.selectedAnime.progress || 0)
                                         color: "#ffffff"; font.bold: true; font.pixelSize: 14 
                                     }
                                 }
@@ -698,7 +718,7 @@ FocusScope {
                                 
                                 ColumnLayout {
                                     spacing: 2
-                                    Text { text: "Prossimo"; color: "#9ca3af"; font.pixelSize: 11 }
+                                    Text { text: mainContent.tr("Prossimo", "Next"); color: "#9ca3af"; font.pixelSize: 11 }
                                     Text { 
                                         text: appController.selectedAnime.media && appController.selectedAnime.media.nextAiringEpisode ? 
                                               "Ep " + appController.selectedAnime.media.nextAiringEpisode.episode : "TBA"
@@ -731,13 +751,13 @@ FocusScope {
                         anchors.centerIn: parent
                         spacing: 10
                         Text {
-                            text: "📺 Seleziona un anime"
+                            text: "📺 " + mainContent.tr("Seleziona un anime", "Select an anime")
                             color: "#6b7280"
                             font.pixelSize: 18
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                         Text {
-                            text: "per vedere i dettagli"
+                            text: mainContent.tr("per vedere i dettagli", "to view details")
                             color: "#4b5563"
                             font.pixelSize: 14
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -763,7 +783,9 @@ FocusScope {
             spacing: 10
             
             Text {
-                text: appController.isAuthenticated ? "✅ Collegato" : "⚠️ Offline"
+                text: appController.isAuthenticated
+                      ? ("✅ " + mainContent.tr("Collegato", "Connected"))
+                      : ("⚠️ " + mainContent.tr("Offline", "Offline"))
                 color: appController.isAuthenticated ? "#10b981" : "#f59e0b"
                 font.pixelSize: 12
             }
@@ -788,12 +810,25 @@ FocusScope {
     
     // Splash Screen is now handled by BootShell
     Timer {
-        id: filterDebounceTimer
-        interval: 140
+        id: sidebarCoverUpdateTimer
+        interval: 48
         repeat: false
-        onTriggered: appController.setFilterText(mainContent.pendingFilterText)
+        onTriggered: {
+            if (mainContent.sidebarCoverSource !== mainContent.pendingSidebarCoverSource) {
+                mainContent.sidebarCoverSource = mainContent.pendingSidebarCoverSource
+            }
+        }
     }
-    
+
+    Connections {
+        target: appController
+        function onSelectedAnimeChanged() {
+            mainContent.refreshSidebarCoverSource()
+        }
+    }
+
+    Component.onCompleted: mainContent.refreshSidebarCoverSource()
+
     // Settings Dialog
     Loader {
         id: settingsLoader

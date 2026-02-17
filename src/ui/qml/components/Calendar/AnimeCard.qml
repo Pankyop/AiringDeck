@@ -7,6 +7,7 @@ Item {
     id: root
     width: 200
     height: 320
+    property bool isEnglishUi: appController.appLanguage === "en"
     
     function resolveCardCover(anime) {
         if (!anime || !anime.coverImage) {
@@ -70,6 +71,7 @@ Item {
                         
                         NumberAnimation on x {
                             from: -parent.width; to: parent.width; duration: 1500; loops: Animation.Infinite
+                            running: parent.visible
                         }
                     }
                 }
@@ -120,7 +122,7 @@ Item {
                     
                     Text {
                         anchors.centerIn: parent
-                        text: "OGGI"
+                        text: root.isEnglishUi ? "TODAY" : "OGGI"
                         color: "white"
                         font.pixelSize: 10
                         font.bold: true
@@ -150,8 +152,8 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     text: animeData.nextAiringEpisode ? 
-                          "Next: Ep " + animeData.nextAiringEpisode.episode + " • " + airingTime : 
-                          "Finished or TBA"
+                          ((root.isEnglishUi ? "Next: Ep " : "Prossimo: Ep ") + animeData.nextAiringEpisode.episode + " • " + airingTime) :
+                          (root.isEnglishUi ? "Finished or TBA" : "Terminato o TBA")
                     color: animeData.nextAiringEpisode ? "#34d399" : "#9ca3af"
                     font.pixelSize: 11
                     font.bold: !!animeData.nextAiringEpisode
