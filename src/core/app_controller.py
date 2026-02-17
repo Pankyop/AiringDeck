@@ -515,6 +515,9 @@ class AppController(QObject):
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
         self._full_airing_entries = []
+        # Force a UI refresh even when filter state is unchanged.
+        self._data_revision += 1
+        self._ui_model_key = None
         if self._available_genres != ["All genres"]:
             self._available_genres = ["All genres"]
             self.availableGenresChanged.emit()
