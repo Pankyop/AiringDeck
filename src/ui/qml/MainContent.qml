@@ -631,16 +631,16 @@ FocusScope {
                 
                 // Anime Details
                 ScrollView {
+                    id: detailsScroll
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     visible: !!appController.selectedAnime.media
                     clip: true
                     
                     ColumnLayout {
-                        width: parent.availableWidth
+                        // Keep a safety gutter so long text never touches/clips at the viewport edge.
+                        width: Math.max(detailsScroll.availableWidth - 12, 0)
                         spacing: 20
-                        anchors.leftMargin: 5
-                        anchors.rightMargin: 5
                         
                         Rectangle {
                             Layout.fillWidth: true
@@ -685,14 +685,15 @@ FocusScope {
                             // Title
                             Text {
                                 Layout.fillWidth: true
+                                Layout.rightMargin: 8
                                 text: appController.selectedAnime.display_title || ""
                                 color: "#ffffff"
-                                font.pixelSize: 24
-                                minimumPixelSize: 18
+                                font.pixelSize: 22
+                                minimumPixelSize: 16
                                 fontSizeMode: Text.Fit
                                 font.bold: true
                                 wrapMode: Text.WordWrap
-                                maximumLineCount: 3
+                                maximumLineCount: 4
                                 elide: Text.ElideRight
                             }
                             
