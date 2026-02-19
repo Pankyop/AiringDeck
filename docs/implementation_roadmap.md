@@ -1,106 +1,128 @@
-# AiringDeck - Piano Aggiunte Future
+# AiringDeck - Implementation Roadmap
 
-Ultimo aggiornamento: 16 febbraio 2026
+Ultimo aggiornamento: 19 febbraio 2026 (P0 + P1 richiesto completati)
 
-## 1) Stato attuale sintetico
+## 1) Stato attuale (reale)
 
-- App desktop Qt/QML con login AniList OAuth.
-- Vista calendario settimanale e dettaglio anime.
-- Sync asincrona e cache offline base.
-- Build Windows con PyInstaller.
-- Fallback Python attivo quando l'estensione nativa C non e disponibile.
+- Versione target: `3.3.0-beta.1`.
+- Build Windows: funzionante (`scripts/build_windows.py`, output in `dist/`).
+- QA suite: `45 passed`.
+- Coverage totale: `80%`.
+- Dependency scan (`pip-audit`): PASS.
+- Runtime checks senza profiling: smoke, DPI matrix, E2E 3m10s, soak 10m -> PASS.
 
-## 2) Obiettivi prodotto (prossimi step)
+Conclusione: stato **Beta avanzata**, non ancora GA.
 
-1. Stabilizzare UX e rendering (niente regressioni UI).
-2. Aggiungere funzioni utili per uso quotidiano (filtri, ordinamenti, azioni rapide).
-3. Migliorare affidabilita dati/sync e gestione errori.
-4. Alzare qualita tecnica (test, CI, release process).
+## 2) Avanzamento P0 RC/GA
 
-## 3) Backlog prioritizzato
+Stato: **COMPLETATO** (19 febbraio 2026).
 
-### P0 - Critico (subito)
+Chiusure effettuate:
+- `except:` naked rimosso e logging errori uniformato in `src/core/worker.py`.
+- Hardcode versione residuo rimosso da UI (About/Settings usano `appController.appVersion`).
+- `CHANGELOG.md` ufficiale aggiunto.
+- Processo release/tag formalizzato in `docs/release_process.md`.
+- Pipeline CI minima aggiunta in `.github/workflows/ci.yml`:
+  - `ruff`
+  - `bandit`
+  - `pytest + coverage`
+  - build smoke (`py_compile`)
 
-- Hardening rendering immagini in sidebar e card con fallback sicuri.
-- Migliorare gestione errori rete/token (messaggi specifici per timeout, 401, rate limit).
-- Versionamento coerente in UI + build script + metadata package.
-- Logging runtime piu chiaro per debug produzione.
+## 3) Avanzamento P1 richiesto
 
-### P1 - Alto impatto (breve termine)
+Stato: **COMPLETATO** (19 febbraio 2026).
 
-- Filtri avanzati: genere, solo oggi, soglia score minima.
-- Ordinamenti: airing time, titolo, progresso, score.
-- Sidebar dettagli estesi: stagioni, studio, episodi, descrizione pulita.
-- Azioni rapide: apri AniList, copia titolo/link.
-- Persistenza selezione ultimo anime.
+Chiusure effettuate:
+- Edge case rete/recovery coperti con hardening `AniListService`:
+  - retry esplicito su timeout/connection/rate-limit/5xx;
+  - stop retry su `401` e su errori GraphQL non transienti.
+- Copertura test aggiuntiva su failure path e recovery:
+  - nuovi test in `tests/test_anilist_service.py`;
+  - nuovi test in `tests/test_integration_controller_flow.py`.
+- Accessibilita tastiera/focus migliorata nei componenti QML principali:
+  - `activeFocusOnTab`, `KeyNavigation`, `Accessible.*` su header/filtri/card/dialog.
+- Policy dipendenze unificata:
+  - pin runtime allineati in `requirements.txt` e `pyproject.toml`;
+  - policy documentata in `docs/dependency_policy.md`;
+  - check automatico `scripts/check_dependency_sync.py` in quality suite/CI.
+- Checklist manuale multi-monitor/DPI stabilizzata:
+  - `docs/manual_dpi_multimonitor_checklist.md`.
 
-### P2 - Medio termine
+## 4) Gap ancora aperti prima della stable (post-P1)
 
-- Notifiche desktop per airing imminente.
-- Background sync periodica configurabile.
-- Modalita offline esplicita (badge/stato dedicato).
-- Migrazione cache da solo QSettings a storage strutturato (SQLite).
+### P2 - Evoluzione pre/post RC
 
-### P3 - Qualita e distribuzione
+- Background sync configurabile e resilient scheduling.
+- Migrazione storage locale da QSettings a SQLite (schema versionato).
+- Installer/update flow Windows (install, uninstall, upgrade testati).
 
-- Test unitari su servizi/controller/filtro.
-- Test integrazione minimi su flusso login+sync+render.
-- CI pipeline (lint + test + build artifact).
-- Installer Windows e strategia aggiornamenti.
+### P3 - Processo e governance
 
-## 4) Milestone consigliate
+- Protezione branch release + regole merge su CI verde.
+- Automazione release notes da changelog/tag.
+- Test matrix ampliata (Windows versioni diverse) in CI.
 
-### Milestone A (1-2 settimane)
+## 5) Roadmap temporale aggiornata
 
-- Chiudere P0.
-- Stabilizzare rendering cover e fallback.
-- Consolidare log e messaggi errore.
+### Fase RC-1 (1-2 settimane)
 
-### Milestone B (2-4 settimane)
+- Consolidare i miglioramenti P1 su branch release.
+- Consolidare CI su branch release.
+- Eseguire regression pack completo senza profiling.
+- Preparare tag prerelease.
 
-- Implementare blocco P1 completo.
-- Testare UX su dataset reali AniList.
+Deliverable:
+- `3.3.0-rc.1`
+- CI stabile e repeatable
 
-### Milestone C (4-8 settimane)
+### Fase RC-2 (2-4 settimane)
 
-- Implementare P2 (notifiche + background sync + offline).
-- Definire schema dati locale evolutivo.
+- Chiudere i P2 prioritari e validazioni manuali bloccanti.
+- Hardening finale comportamento runtime.
+- Freeze feature.
 
-### Milestone D (continuo)
+Deliverable:
+- `3.3.0-rc.2` (se necessario) oppure candidatura diretta a `3.3.0`
 
-- P3: test automation + CI + packaging/release.
+### Fase GA (4-6 settimane)
 
-## 5) Definition of Done per ogni feature
+- Test finali su build distributiva.
+- Verifica installazione/aggiornamento/disinstallazione.
+- Pubblicazione stable con changelog e tag finali.
 
-- Nessun freeze UI durante operazioni lunghe.
-- Stati loading/error/empty sempre gestiti.
-- Comportamento coerente online/offline.
-- Copertura test minima per logica critica.
-- Build ripetibile con note di rilascio chiare.
+Deliverable:
+- `3.3.0` stable
 
-## 6) Rischi principali e mitigazioni
+## 6) Definition of Done (obbligatoria)
 
-- Rischio: regressioni QML su binding complessi.
-  - Mitigazione: preferire source semplici, fallback espliciti, smoke test UI per release.
-- Rischio: differenze ambiente build (toolchain C mancante).
-  - Mitigazione: mantenere fallback Python e profili build chiari.
-- Rischio: errori API non gestiti in modo granulare.
-  - Mitigazione: normalizzazione errori e retry/backoff centralizzati.
+- Nessun freeze UI nei flussi login/sync/filter/reset.
+- Stati loading/error/empty sempre gestiti in UI.
+- Nessun `except:` naked nei moduli core/services.
+- Suite automatica verde con coverage mantenuto >=80%.
+- Versione coerente in `src/version.py`, `pyproject.toml`, `setup.py`, UI.
+- Changelog aggiornato e tag Git creato per ogni release.
 
-## 7) Criteri obbligatori per entrare in Release Stable (GA)
+## 7) Gate GA (stato ad oggi)
 
-1. Qualita build/release:
-   - build Windows ripetibile in CI su branch release
-   - artifact versionato e changelog aggiornato
-2. Qualita codice:
-   - nessun `P0`/`P1` aperto
-   - nessun `except:` naked nei moduli core/services
-3. Test minimi obbligatori:
-   - unit test core/services verdi
-   - smoke test avvio UI/QML verde
-4. Stabilita runtime:
-   - login/sync/logout funzionanti su account reale
-   - rendering immagini card/sidebar con fallback verificato
-5. Governance versione:
-   - tag Git release creato
-   - versione coerente tra `src/version.py`, metadata package e UI
+1. Build e release process:
+- build ripetibile in CI -> **IN CORSO**
+- artifact versionato + changelog + tag -> **PARZIALE**
+
+2. Qualita tecnica:
+- issue P0 aperte -> **NO** (OK)
+- crash bloccanti smoke/E2E/soak -> **NON RILEVATI**
+
+3. Test:
+- suite automatica verde -> **OK**
+- coverage complessivo >=80% -> **OK**
+- regressione UI critica coperta da test/checklist -> **OK** (automatizzato + checklist manuale)
+
+4. Operativita:
+- login/sync/logout validati su account reale -> **OK**
+- fallback immagini + layout lungo titolo su risoluzioni diverse -> **OK (con validazione manuale da mantenere)**
+
+## 8) Prossima feature consigliata dopo chiusura gate GA
+
+- Background sync intelligente con finestre orarie configurabili e backoff adattivo.
+  - Motivo: aumenta utilita quotidiana senza cambiare UX principale.
+  - Vincolo: introdurre solo dopo chiusura P2 bloccanti e rilascio `3.3.0` stable.
