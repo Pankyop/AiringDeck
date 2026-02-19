@@ -1,5 +1,4 @@
 import traceback
-import sys
 import logging
 from PySide6.QtCore import QRunnable, Slot, Signal, QObject
 
@@ -35,10 +34,9 @@ class Worker(QRunnable):
         try:
             result = self.fn(*self.args, **self.kwargs)
         except Exception as exc:
-            logger.exception("Worker function failed")
-            exctype = type(exc)
-            _, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
+            fn_name = getattr(self.fn, "__name__", self.fn.__class__.__name__)
+            logger.error("Worker '%s' failed", fn_name, exc_info=True)
+            self.signals.error.emit((type(exc), exc, traceback.format_exc()))
         else:
             self.signals.result.emit(result)
         finally:
