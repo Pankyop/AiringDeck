@@ -56,6 +56,24 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
+### Update Notifications
+
+L'app controlla automaticamente gli aggiornamenti all'avvio.
+Se trova una versione piu recente, mostra un avviso con:
+
+- cosa cambia per l'utente (note release),
+- pulsante `Aggiorna ora` (apre la pagina release),
+- freccia per chiudere l'avviso.
+
+Configurazione opzionale via variabili ambiente:
+
+```bash
+AIRINGDECK_UPDATE_REPOSITORY=Pankyop/AiringDeck
+AIRINGDECK_UPDATE_FEED_URL=https://api.github.com/repos/Pankyop/AiringDeck/releases/latest
+AIRINGDECK_UPDATE_TAGS_URL=https://api.github.com/repos/Pankyop/AiringDeck/tags
+AIRINGDECK_UPDATE_DOWNLOAD_URL=https://github.com/Pankyop/AiringDeck/releases
+```
+
 ### Build .exe
 
 ```bash

@@ -1,10 +1,12 @@
 from datetime import datetime
 import logging
-from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings, QTimer
+from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings, QTimer, QUrl
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+from PySide6.QtGui import QDesktopServices
 from services.auth_service import AuthService
 from services.anilist_service import AniListService
+from services.update_service import UpdateService
 from core.worker import Worker
 from core.anime_model import AnimeModel
 from core.native_accel import filter_entries_advanced, is_native_available
@@ -35,6 +37,8 @@ class AppController(QObject):
     appLanguageChanged = Signal()
     notificationsEnabledChanged = Signal()
     notificationLeadMinutesChanged = Signal()
+    updateAvailableChanged = Signal()
+    updateInfoChanged = Signal()
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -59,6 +63,13 @@ class AppController(QObject):
         self._last_notification_media_id = None
         self._tray_icon = None
         self._anime_by_id = {}
+        self._update_available = False
+        self._update_check_in_progress = False
+        self._update_latest_version = ""
+        self._update_title = ""
+        self._update_notes = ""
+        self._update_download_url = ""
+        self._update_published_at = ""
         
         # High-performance Models
         self._all_anime_model = AnimeModel(self)
@@ -90,6 +101,7 @@ class AppController(QObject):
         self._notification_lead_minutes = self._settings.value("notification_lead_minutes", 15, type=int)
         if self._notification_lead_minutes not in {5, 15, 30, 60}:
             self._notification_lead_minutes = 15
+        self._dismissed_update_version = self._settings.value("dismissed_update_version", "", type=str)
         
         # Calendar State
         self._daily_counts = [0] * 7
@@ -110,6 +122,7 @@ class AppController(QObject):
         # Initialize services
         self._auth_service = AuthService()
         self._anilist_service = AniListService()
+        self._update_service = UpdateService()
         
         # Connect signals
         self._auth_service.auth_completed.connect(self._on_auth_completed)
@@ -123,6 +136,7 @@ class AppController(QObject):
     def initialize(self):
         """Heavy initialization triggered after UI is visible"""
         logger.info("Starting lazy initialization...")
+        self.checkForUpdates()
         
         # Check initial state
         saved_token = self._auth_service.get_saved_token()
@@ -489,6 +503,85 @@ class AppController(QObject):
     @Property(str, constant=True)
     def appVersion(self):
         return APP_VERSION
+
+    @Property(bool, notify=updateAvailableChanged)
+    def updateAvailable(self):
+        return self._update_available
+
+    @Property(str, notify=updateInfoChanged)
+    def updateLatestVersion(self):
+        return self._update_latest_version
+
+    @Property(str, notify=updateInfoChanged)
+    def updateTitle(self):
+        return self._update_title
+
+    @Property(str, notify=updateInfoChanged)
+    def updateNotes(self):
+        return self._update_notes
+
+    @Property(str, notify=updateInfoChanged)
+    def updateDownloadUrl(self):
+        return self._update_download_url
+
+    @Property(str, notify=updateInfoChanged)
+    def updatePublishedAt(self):
+        return self._update_published_at
+
+    @Slot()
+    def checkForUpdates(self):
+        if self._update_check_in_progress:
+            return
+        self._update_check_in_progress = True
+
+        worker = Worker(self._update_service.check_latest, APP_VERSION)
+        worker.signals.result.connect(self._on_update_check_result)
+        worker.signals.error.connect(self._on_update_check_error)
+        worker.signals.finished.connect(self._on_update_check_finished)
+        self._thread_pool.start(worker)
+
+    def _on_update_check_result(self, payload):
+        if not isinstance(payload, dict):
+            return
+        latest = str(payload.get("latest_version") or "").strip()
+        available = bool(payload.get("available"))
+
+        self._update_latest_version = latest
+        self._update_title = str(payload.get("title") or "")
+        self._update_notes = str(payload.get("notes") or "")
+        self._update_download_url = str(payload.get("download_url") or "")
+        self._update_published_at = str(payload.get("published_at") or "")
+
+        if available and latest and latest == self._dismissed_update_version:
+            available = False
+
+        if self._update_available != available:
+            self._update_available = available
+            self.updateAvailableChanged.emit()
+        self.updateInfoChanged.emit()
+
+    def _on_update_check_error(self, err):
+        err_text = self._extract_error_text(err)
+        logger.info("Update check failed or unavailable: %s", err_text)
+
+    def _on_update_check_finished(self):
+        self._update_check_in_progress = False
+
+    @Slot()
+    def openUpdatePage(self):
+        if not self._update_download_url:
+            return
+        if not QDesktopServices.openUrl(QUrl(self._update_download_url)):
+            logger.warning("Failed to open update URL: %s", self._update_download_url)
+
+    @Slot()
+    def dismissUpdateNotice(self):
+        if self._update_latest_version:
+            self._dismissed_update_version = self._update_latest_version
+            self._settings.setValue("dismissed_update_version", self._dismissed_update_version)
+        if self._update_available:
+            self._update_available = False
+            self.updateAvailableChanged.emit()
     
     # Slots (callable from QML)
     @Slot()
