@@ -8,6 +8,15 @@ Item {
     width: 200
     height: 320
     property bool isEnglishUi: appController.appLanguage === "en"
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: displayTitle
+    Accessible.description: isEnglishUi
+                            ? "Anime card. Press Enter to open details."
+                            : "Scheda anime. Premi Invio per aprire i dettagli."
+    Keys.onReturnPressed: appController.selectAnime(animeData.id)
+    Keys.onEnterPressed: appController.selectAnime(animeData.id)
+    Keys.onSpacePressed: appController.selectAnime(animeData.id)
     
     function resolveCardCover(anime) {
         if (!anime || !anime.coverImage) {
@@ -32,8 +41,8 @@ Item {
         clip: true
         
         // Border/Shadow hover effect
-        border.color: mouseArea.containsMouse ? "#3b82f6" : "#374151"
-        border.width: mouseArea.containsMouse ? 2 : 1
+        border.color: (mouseArea.containsMouse || root.activeFocus) ? "#3b82f6" : "#374151"
+        border.width: (mouseArea.containsMouse || root.activeFocus) ? 2 : 1
         
         // Hover Scale Animation
         scale: mouseArea.containsMouse ? 1.05 : 1.0

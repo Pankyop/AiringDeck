@@ -46,7 +46,7 @@ Dialog {
             }
             
             Text {
-                text: "v" + appController.appVersion + " Beta"
+                text: "v" + appController.appVersion
                 color: "#34d399"
                 font.pixelSize: 16
                 font.bold: true
@@ -97,6 +97,9 @@ Dialog {
             text: appController.appLanguage === "en" ? "CLOSE" : "CHIUDI"
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 120
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: appController.appLanguage === "en" ? "Close dialog" : "Chiudi finestra"
             onClicked: aboutDialog.close()
             
             background: Rectangle {

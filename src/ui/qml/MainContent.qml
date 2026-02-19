@@ -181,6 +181,14 @@ FocusScope {
                                     font.pixelSize: 14
                                     enabled: true
                                     verticalAlignment: Text.AlignVCenter
+                                    activeFocusOnTab: true
+                                    KeyNavigation.tab: genreCombo
+                                    Accessible.role: Accessible.EditableText
+                                    Accessible.name: mainContent.tr("Cerca anime", "Search anime")
+                                    Accessible.description: mainContent.tr(
+                                        "Campo di ricerca per filtrare la lista anime",
+                                        "Search field to filter the anime list"
+                                    )
                                     
                                     onTextChanged: {
                                         appController.setFilterText(text)
@@ -199,10 +207,23 @@ FocusScope {
                         
                         // Sync Button
                         Rectangle {
+                            id: syncButton
                             width: 40
                             height: 40
                             radius: 8
                             color: syncMouseArea.containsMouse ? "#4b5563" : "#374151"
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: profileButton
+                            KeyNavigation.backtab: searchInput
+                            Accessible.role: Accessible.Button
+                            Accessible.name: mainContent.tr("Sincronizza lista", "Synchronize list")
+                            Accessible.description: mainContent.tr(
+                                "Aggiorna dal server AniList la lista anime",
+                                "Refresh anime list from AniList server"
+                            )
+                            Keys.onReturnPressed: appController.syncAnimeList()
+                            Keys.onEnterPressed: appController.syncAnimeList()
+                            Keys.onSpacePressed: appController.syncAnimeList()
                             
                             Text {
                                 anchors.centerIn: parent
@@ -234,12 +255,50 @@ FocusScope {
                         
                         // Login/Profile Section
                         Rectangle {
+                            id: profileButton
                             Layout.preferredWidth: appController.isAuthenticated ? 200 : 180
                             Layout.preferredHeight: 40
                             color: appController.isAuthenticated ? "transparent" : "#3b82f6"
                             radius: 8
                             border.color: appController.isAuthenticated ? "#4b5563" : "transparent"
                             border.width: appController.isAuthenticated ? 1 : 0
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: genreCombo
+                            KeyNavigation.backtab: syncButton
+                            Accessible.role: Accessible.Button
+                            Accessible.name: appController.isAuthenticated
+                                             ? mainContent.tr("Menu utente", "User menu")
+                                             : mainContent.tr("Login AniList", "AniList login")
+                            Accessible.description: appController.isAuthenticated
+                                                    ? mainContent.tr(
+                                                        "Apri menu impostazioni e logout",
+                                                        "Open settings and logout menu"
+                                                    )
+                                                    : mainContent.tr(
+                                                        "Avvia autenticazione AniList",
+                                                        "Start AniList authentication"
+                                                    )
+                            Keys.onReturnPressed: {
+                                if (appController.isAuthenticated) {
+                                    userMenu.open()
+                                } else {
+                                    appController.login()
+                                }
+                            }
+                            Keys.onEnterPressed: {
+                                if (appController.isAuthenticated) {
+                                    userMenu.open()
+                                } else {
+                                    appController.login()
+                                }
+                            }
+                            Keys.onSpacePressed: {
+                                if (appController.isAuthenticated) {
+                                    userMenu.open()
+                                } else {
+                                    appController.login()
+                                }
+                            }
                             
                             MouseArea {
                                 id: profileArea
@@ -329,6 +388,14 @@ FocusScope {
                             Layout.preferredWidth: parent.compactLayout ? 160 : 190
                             model: appController.availableGenres
                             currentIndex: mainContent.genreIndexOf(appController.selectedGenre)
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: minScoreSpin
+                            KeyNavigation.backtab: profileButton
+                            Accessible.name: mainContent.tr("Filtro genere", "Genre filter")
+                            Accessible.description: mainContent.tr(
+                                "Seleziona il genere da mostrare",
+                                "Select genre to display"
+                            )
                             displayText: mainContent.genreLabel(
                                 (currentIndex >= 0 && currentIndex < model.length) ? model[currentIndex] : "All genres"
                             )
@@ -389,6 +456,14 @@ FocusScope {
                                 editable: true
                                 value: appController.minScore
                                 Layout.preferredWidth: parent.parent.compactLayout ? 104 : 120
+                                activeFocusOnTab: true
+                                KeyNavigation.tab: onlyTodayCheck
+                                KeyNavigation.backtab: genreCombo
+                                Accessible.name: mainContent.tr("Voto minimo", "Minimum score")
+                                Accessible.description: mainContent.tr(
+                                    "Imposta il voto minimo degli anime mostrati",
+                                    "Set the minimum score for displayed anime"
+                                )
                                 onValueModified: appController.minScore = value
                                 ToolTip.visible: hovered
                                 ToolTip.text: mainContent.tr(
@@ -401,6 +476,14 @@ FocusScope {
                         CheckBox {
                             id: onlyTodayCheck
                             checked: appController.onlyToday
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: sortCombo
+                            KeyNavigation.backtab: minScoreSpin
+                            Accessible.name: mainContent.tr("Solo episodi oggi", "Only episodes today")
+                            Accessible.description: mainContent.tr(
+                                "Mostra solo anime con episodio in uscita oggi",
+                                "Show only anime with an episode airing today"
+                            )
                             onToggled: appController.onlyToday = checked
                             contentItem: Text {
                                 text: parent.parent.compactLayout
@@ -440,6 +523,14 @@ FocusScope {
                             Layout.preferredWidth: parent.compactLayout ? 150 : 170
                             model: mainContent.sortOptions
                             textRole: "label"
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: sortDirectionButton
+                            KeyNavigation.backtab: onlyTodayCheck
+                            Accessible.name: mainContent.tr("Ordinamento", "Sorting")
+                            Accessible.description: mainContent.tr(
+                                "Seleziona il criterio di ordinamento",
+                                "Select sorting criteria"
+                            )
                             currentIndex: {
                                 for (var i = 0; i < mainContent.sortOptions.length; i++) {
                                     if (mainContent.sortOptions[i].value === appController.sortField) {
@@ -483,8 +574,20 @@ FocusScope {
                         }
 
                         Button {
+                            id: sortDirectionButton
                             text: appController.sortAscending ? "ASC" : "DESC"
                             Layout.preferredWidth: parent.compactLayout ? 74 : 82
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: resetFiltersButton
+                            KeyNavigation.backtab: sortCombo
+                            Accessible.name: mainContent.tr(
+                                "Direzione ordinamento",
+                                "Sort direction"
+                            )
+                            Accessible.description: mainContent.tr(
+                                "Alterna ordinamento crescente o decrescente",
+                                "Toggle ascending or descending sort"
+                            )
                             onClicked: appController.toggleSortDirection()
                         }
 
@@ -494,10 +597,19 @@ FocusScope {
                         }
 
                         Button {
+                            id: resetFiltersButton
                             text: parent.compactLayout
                                   ? mainContent.tr("Reset", "Reset")
                                   : mainContent.tr("Reset filtri", "Reset filters")
                             Layout.preferredWidth: parent.compactLayout ? 82 : 110
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: searchInput
+                            KeyNavigation.backtab: sortDirectionButton
+                            Accessible.name: mainContent.tr("Reset filtri", "Reset filters")
+                            Accessible.description: mainContent.tr(
+                                "Reimposta ricerca, filtri e ordinamento ai valori predefiniti",
+                                "Reset search, filters and sorting to default values"
+                            )
                             onClicked: {
                                 searchInput.text = ""
                                 appController.resetAllFilters()

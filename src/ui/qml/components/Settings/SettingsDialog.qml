@@ -162,6 +162,8 @@ Dialog {
                         ]
                         textRole: "label"
                         currentIndex: appController.appLanguage === "en" ? 1 : 0
+                        activeFocusOnTab: true
+                        Accessible.name: settingsDialog.tr("Lingua applicazione", "Application language")
                         onActivated: appController.appLanguage = model[currentIndex].value
                     }
                 }
@@ -198,6 +200,8 @@ Dialog {
                     Switch {
                         id: titleSwitch
                         checked: appController.useEnglishTitle
+                        activeFocusOnTab: true
+                        Accessible.name: settingsDialog.tr("Titoli in inglese", "English titles")
                         onToggled: appController.useEnglishTitle = checked
                     }
                 }
@@ -237,6 +241,11 @@ Dialog {
                         Switch {
                             id: notificationsSwitch
                             checked: appController.notificationsEnabled
+                            activeFocusOnTab: true
+                            Accessible.name: settingsDialog.tr(
+                                                 "Notifiche prossimi episodi",
+                                                 "Upcoming episode notifications"
+                                             )
                             onToggled: appController.notificationsEnabled = checked
                         }
 
@@ -244,6 +253,11 @@ Dialog {
                             id: notifyLeadCombo
                             enabled: notificationsSwitch.checked
                             Layout.preferredWidth: 120
+                            activeFocusOnTab: true
+                            Accessible.name: settingsDialog.tr(
+                                                 "Anticipo notifica",
+                                                 "Notification lead time"
+                                             )
                             model: [
                                 { label: "5 min", value: 5 },
                                 { label: "15 min", value: 15 },
@@ -333,6 +347,11 @@ Dialog {
                               : settingsDialog.tr("Login", "Login")
                         implicitWidth: 100
                         implicitHeight: 38
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: appController.isAuthenticated
+                                         ? settingsDialog.tr("Esegui logout", "Perform logout")
+                                         : settingsDialog.tr("Esegui login", "Perform login")
                         
                         background: Rectangle {
                             color: appController.isAuthenticated ? "transparent" : "#3182ce"
@@ -372,7 +391,7 @@ Dialog {
             opacity: 0.5
             
             Text {
-                text: "AiringDeck v" + appController.appVersion + " Beta"
+                text: "AiringDeck v" + appController.appVersion
                 color: "white"
                 font.pixelSize: 11
                 font.bold: true
@@ -392,6 +411,9 @@ Dialog {
             Layout.preferredWidth: 200
             Layout.preferredHeight: 45
             text: settingsDialog.tr("CONFERMA E CHIUDI", "CONFIRM AND CLOSE")
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: settingsDialog.tr("Conferma e chiudi", "Confirm and close")
             
             background: Rectangle {
                 color: closeBtn.hovered ? "#4a5568" : "#2d3748"
