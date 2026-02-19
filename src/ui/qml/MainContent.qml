@@ -321,11 +321,12 @@ FocusScope {
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 12
-                        spacing: 10
+                        readonly property bool compactLayout: width < 1120
+                        spacing: compactLayout ? 6 : 10
 
                         ComboBox {
                             id: genreCombo
-                            Layout.preferredWidth: 190
+                            Layout.preferredWidth: parent.compactLayout ? 160 : 190
                             model: appController.availableGenres
                             currentIndex: mainContent.genreIndexOf(appController.selectedGenre)
                             displayText: mainContent.genreLabel(
@@ -371,7 +372,9 @@ FocusScope {
                             spacing: 6
 
                             Text {
-                                text: mainContent.tr("Voto minimo", "Min score")
+                                text: parent.parent.compactLayout
+                                      ? mainContent.tr("Voto min", "Min score")
+                                      : mainContent.tr("Voto minimo", "Min score")
                                 color: "#f3f4f6"
                                 font.pixelSize: 12
                                 font.bold: true
@@ -385,7 +388,7 @@ FocusScope {
                                 stepSize: 1
                                 editable: true
                                 value: appController.minScore
-                                Layout.preferredWidth: 120
+                                Layout.preferredWidth: parent.parent.compactLayout ? 104 : 120
                                 onValueModified: appController.minScore = value
                                 ToolTip.visible: hovered
                                 ToolTip.text: mainContent.tr(
@@ -400,7 +403,9 @@ FocusScope {
                             checked: appController.onlyToday
                             onToggled: appController.onlyToday = checked
                             contentItem: Text {
-                                text: mainContent.tr("Solo episodi oggi", "Only episodes today")
+                                text: parent.parent.compactLayout
+                                      ? mainContent.tr("Solo oggi", "Only today")
+                                      : mainContent.tr("Solo episodi oggi", "Only episodes today")
                                 color: "#ffffff"
                                 font.pixelSize: 13
                                 font.bold: true
@@ -432,7 +437,7 @@ FocusScope {
 
                         ComboBox {
                             id: sortCombo
-                            Layout.preferredWidth: 170
+                            Layout.preferredWidth: parent.compactLayout ? 150 : 170
                             model: mainContent.sortOptions
                             textRole: "label"
                             currentIndex: {
@@ -479,15 +484,20 @@ FocusScope {
 
                         Button {
                             text: appController.sortAscending ? "ASC" : "DESC"
-                            Layout.preferredWidth: 82
+                            Layout.preferredWidth: parent.compactLayout ? 74 : 82
                             onClicked: appController.toggleSortDirection()
                         }
 
-                        Item { Layout.fillWidth: true }
+                        Item {
+                            visible: !parent.compactLayout
+                            Layout.fillWidth: !parent.compactLayout
+                        }
 
                         Button {
-                            text: mainContent.tr("Reset filtri", "Reset filters")
-                            Layout.preferredWidth: 110
+                            text: parent.compactLayout
+                                  ? mainContent.tr("Reset", "Reset")
+                                  : mainContent.tr("Reset filtri", "Reset filters")
+                            Layout.preferredWidth: parent.compactLayout ? 82 : 110
                             onClicked: {
                                 searchInput.text = ""
                                 appController.resetAllFilters()
