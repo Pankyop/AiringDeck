@@ -687,11 +687,13 @@ FocusScope {
                                 Layout.fillWidth: true
                                 text: appController.selectedAnime.display_title || ""
                                 color: "#ffffff"
-                                font.pixelSize: 24 // Reduced from 28 to give more room
+                                font.pixelSize: 24
+                                minimumPixelSize: 18
+                                fontSizeMode: Text.Fit
                                 font.bold: true
                                 wrapMode: Text.WordWrap
-                                maximumLineCount: 5
-                                elide: Text.ElideNone
+                                maximumLineCount: 3
+                                elide: Text.ElideRight
                             }
                             
                             // Countdown / Airing Info
