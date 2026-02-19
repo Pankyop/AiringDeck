@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 
 import "components"
 import "components/Calendar"
@@ -90,21 +91,35 @@ FocusScope {
         }
         return map[value] || value
     }
+
+    function formattedUpdateNotes() {
+        if (!appController.updateNotes || appController.updateNotes.length === 0) {
+            return mainContent.tr(
+                "Nuova versione disponibile. Consulta la pagina release per i dettagli.",
+                "A new version is available. Open the release page for details."
+            )
+        }
+        return appController.updateNotes
+    }
     
     // Parent handles window properties
     
-    // Main layout with background gradient
-    Rectangle {
+    Item {
+        id: uiScene
         anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#1f2937" }
-            GradientStop { position: 1.0; color: "#111827" }
-        }
-    }
 
-    RowLayout {
-        anchors.fill: parent
-        spacing: 0
+        // Main layout with background gradient
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#1f2937" }
+                GradientStop { position: 1.0; color: "#111827" }
+            }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: 0
         
         // Calendar area (60%)
         Rectangle {
@@ -893,14 +908,14 @@ FocusScope {
         }
     }
     
-    // Status bar at bottom
-    Rectangle {
-        anchors.bottom: parent.bottom
-        width: parent.width
-        height: 30
-        color: "#111827"
-        border.color: "#374151"
-        border.width: 1
+        // Status bar at bottom
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 30
+            color: "#111827"
+            border.color: "#374151"
+            border.width: 1
         
         RowLayout {
             anchors.fill: parent
@@ -931,6 +946,141 @@ FocusScope {
                 font.pixelSize: 11
             }
         }
+        }
+    }
+
+    Item {
+        id: updateModalOverlay
+        anchors.fill: parent
+        z: 12000
+        visible: appController.updateAvailable
+        focus: visible
+
+        ShaderEffectSource {
+            id: updateOverlaySource
+            anchors.fill: uiScene
+            sourceItem: uiScene
+            live: true
+            hideSource: updateModalOverlay.visible
+            visible: updateModalOverlay.visible
+            smooth: true
+        }
+
+        MultiEffect {
+            anchors.fill: parent
+            source: updateOverlaySource
+            blurEnabled: true
+            blurMax: 48
+            blur: 0.75
+            saturation: 0.95
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: "#66000000"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            cursorShape: Qt.ArrowCursor
+        }
+
+        Rectangle {
+            id: updateDialog
+            width: Math.min(parent.width - 48, 720)
+            height: updateDialogContent.implicitHeight + 34
+            anchors.centerIn: parent
+            radius: 14
+            color: "#0f172a"
+            border.color: "#3b82f6"
+            border.width: 1
+            clip: true
+
+            ColumnLayout {
+                id: updateDialogContent
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: mainContent.tr("Aggiornamento disponibile", "Update available")
+                        color: "#dbeafe"
+                        font.pixelSize: updateDialog.width < 420 ? 16 : 18
+                        font.bold: true
+                    }
+
+                    ToolButton {
+                        id: closeUpdateDialogButton
+                        text: "➜"
+                        font.pixelSize: 17
+                        onClicked: appController.dismissUpdateNotice()
+                        ToolTip.visible: hovered
+                        ToolTip.text: mainContent.tr("Chiudi avviso", "Close notice")
+                        background: Rectangle {
+                            radius: 6
+                            color: closeUpdateDialogButton.hovered ? "#1f2937" : "transparent"
+                        }
+                        contentItem: Text {
+                            text: closeUpdateDialogButton.text
+                            color: "#9ca3af"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            font.pixelSize: closeUpdateDialogButton.font.pixelSize
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: mainContent.tr("Versione attuale: ", "Current version: ")
+                          + "v" + appController.appVersion
+                          + "  →  "
+                          + mainContent.tr("Nuova versione: ", "New version: ")
+                          + "v" + appController.updateLatestVersion
+                    color: "#93c5fd"
+                    font.pixelSize: updateDialog.width < 420 ? 12 : 14
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: mainContent.formattedUpdateNotes()
+                    color: "#e5e7eb"
+                    font.pixelSize: 14
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 10
+                    elide: Text.ElideRight
+                }
+
+                Item { Layout.fillWidth: true; Layout.preferredHeight: 2 }
+
+                Button {
+                    id: updateNowButton
+                    text: mainContent.tr("Aggiorna ora", "Update now")
+                    Layout.alignment: Qt.AlignRight
+                    onClicked: appController.openUpdatePage()
+                    background: Rectangle {
+                        color: updateNowButton.hovered ? "#2563eb" : "#1d4ed8"
+                        radius: 8
+                    }
+                    contentItem: Text {
+                        text: updateNowButton.text
+                        color: "white"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+            }
+        }
+
+        Keys.onEscapePressed: appController.dismissUpdateNotice()
     }
     
     // Splash Screen is now handled by BootShell
