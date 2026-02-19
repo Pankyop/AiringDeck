@@ -1,5 +1,6 @@
 import requests
 import logging
+import time
 from typing import Optional, List, Dict, Any
 
 
@@ -17,12 +18,17 @@ class AniListService:
     def set_token(self, token: str):
         """Imposta access token"""
         self._token = token
+
+    def _sleep_backoff(self, attempt_index: int):
+        """Small linear backoff between transient retries."""
+        time.sleep(1 * (attempt_index + 1))
     
     def _query(self, query: str, variables: Optional[Dict] = None, retries: int = 3) -> Dict[str, Any]:
-        """Esegui query GraphQL con retry logic e timeout"""
+        """Esegui query GraphQL con retry su errori transienti e timeout."""
         if not self._token:
             raise Exception("Not authenticated")
-        
+        retries = max(1, int(retries))
+
         headers = {
             'Authorization': f'Bearer {self._token}',
             'Content-Type': 'application/json',
@@ -36,34 +42,42 @@ class AniListService:
                     self.API_URL,
                     json={'query': query, 'variables': variables or {}},
                     headers=headers,
-                    timeout=10 # 10 second timeout
+                    timeout=10  # 10 second timeout
                 )
-                
                 response.raise_for_status()
                 data = response.json()
-                
+
                 if 'errors' in data:
                     raise Exception(data['errors'][0]['message'])
-                
-                return data['data']
-            except (requests.exceptions.RequestException, Exception) as e:
-                last_error = e
-                logger.warning("API attempt %d failed: %s", attempt + 1, e)
-                if attempt < retries - 1:
-                    import time
-                    time.sleep(1 * (attempt + 1)) # Simple backoff
 
-        if isinstance(last_error, requests.exceptions.Timeout):
-            raise Exception("Timeout: AniList request timed out")
-        if isinstance(last_error, requests.exceptions.ConnectionError):
-            raise Exception("ConnectionError: Unable to reach AniList")
-        if isinstance(last_error, requests.exceptions.HTTPError) and last_error.response is not None:
-            code = last_error.response.status_code
-            if code == 401:
-                raise Exception("HTTP401: Not authenticated")
-            if code == 429:
-                raise Exception("HTTP429: Rate limit exceeded")
-            raise Exception(f"HTTP{code}: AniList request failed")
+                return data.get('data', {})
+            except requests.exceptions.Timeout:
+                last_error = Exception("Timeout: AniList request timed out")
+                logger.warning("API attempt %d/%d timed out", attempt + 1, retries)
+            except requests.exceptions.ConnectionError:
+                last_error = Exception("ConnectionError: Unable to reach AniList")
+                logger.warning("API attempt %d/%d failed: connection error", attempt + 1, retries)
+            except requests.exceptions.HTTPError as exc:
+                code = exc.response.status_code if exc.response is not None else None
+                if code == 401:
+                    raise Exception("HTTP401: Not authenticated")
+                if code == 429:
+                    last_error = Exception("HTTP429: Rate limit exceeded")
+                    logger.warning("API attempt %d/%d failed: rate limit", attempt + 1, retries)
+                elif code is not None and code >= 500:
+                    last_error = Exception(f"HTTP{code}: AniList request failed")
+                    logger.warning("API attempt %d/%d failed: server error %s", attempt + 1, retries, code)
+                else:
+                    raise Exception(f"HTTP{code}: AniList request failed")
+            except requests.exceptions.RequestException as exc:
+                last_error = Exception(f"RequestError: {exc}")
+                logger.warning("API attempt %d/%d failed: request error", attempt + 1, retries)
+            except Exception as exc:
+                # GraphQL / payload errors are non-transient in this context.
+                raise exc
+
+            if attempt < retries - 1:
+                self._sleep_backoff(attempt)
 
         raise last_error or Exception("Unknown API error")
     
