@@ -15,7 +15,11 @@ Dialog {
     onOpened: {
         x = (parent.width - width) / 2
         y = (parent.height - height) / 2
+        Qt.callLater(function() {
+            uiLanguageCombo.forceActiveFocus()
+        })
     }
+    Keys.onEscapePressed: settingsDialog.close()
     
     width: 480
     height: 620
@@ -79,30 +83,35 @@ Dialog {
             
             Item { Layout.fillWidth: true }
             
-            // Re-styled Close Button
-            Rectangle {
-                width: 36
-                height: 36
-                radius: 18
-                color: closeMA.containsMouse ? "#ef4444" : "#2d3748"
-                
-                Text {
-                    anchors.centerIn: parent
+            Button {
+                id: headerCloseButton
+                implicitWidth: 36
+                implicitHeight: 36
+                activeFocusOnTab: true
+                KeyNavigation.tab: uiLanguageCombo
+                KeyNavigation.backtab: closeBtn
+                Accessible.role: Accessible.Button
+                Accessible.name: settingsDialog.tr("Chiudi impostazioni", "Close settings")
+                Accessible.description: settingsDialog.tr(
+                                            "Chiude la finestra impostazioni",
+                                            "Closes the settings window"
+                                        )
+                onClicked: settingsDialog.close()
+
+                background: Rectangle {
+                    radius: 18
+                    color: parent.hovered ? "#ef4444" : "#2d3748"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                contentItem: Text {
                     text: "✕"
                     color: "white"
                     font.pixelSize: 14
                     font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
-                
-                MouseArea {
-                    id: closeMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: settingsDialog.close()
-                }
-                
-                Behavior on color { ColorAnimation { duration: 150 } }
             }
         }
     }
@@ -163,7 +172,13 @@ Dialog {
                         textRole: "label"
                         currentIndex: appController.appLanguage === "en" ? 1 : 0
                         activeFocusOnTab: true
+                        KeyNavigation.tab: titleSwitch
+                        KeyNavigation.backtab: headerCloseButton
                         Accessible.name: settingsDialog.tr("Lingua applicazione", "Application language")
+                        Accessible.description: settingsDialog.tr(
+                                                    "Seleziona italiano o inglese per i testi dell'interfaccia",
+                                                    "Choose Italian or English for interface texts"
+                                                )
                         onActivated: appController.appLanguage = model[currentIndex].value
                     }
                 }
@@ -201,7 +216,13 @@ Dialog {
                         id: titleSwitch
                         checked: appController.useEnglishTitle
                         activeFocusOnTab: true
+                        KeyNavigation.tab: notificationsSwitch
+                        KeyNavigation.backtab: uiLanguageCombo
                         Accessible.name: settingsDialog.tr("Titoli in inglese", "English titles")
+                        Accessible.description: settingsDialog.tr(
+                                                    "Mostra i titoli in inglese quando disponibili",
+                                                    "Show English titles when available"
+                                                )
                         onToggled: appController.useEnglishTitle = checked
                     }
                 }
@@ -242,10 +263,16 @@ Dialog {
                             id: notificationsSwitch
                             checked: appController.notificationsEnabled
                             activeFocusOnTab: true
+                            KeyNavigation.tab: notificationsSwitch.checked ? notifyLeadCombo : authBtn
+                            KeyNavigation.backtab: titleSwitch
                             Accessible.name: settingsDialog.tr(
                                                  "Notifiche prossimi episodi",
                                                  "Upcoming episode notifications"
                                              )
+                            Accessible.description: settingsDialog.tr(
+                                                        "Attiva o disattiva le notifiche dei prossimi episodi",
+                                                        "Enable or disable upcoming episode notifications"
+                                                    )
                             onToggled: appController.notificationsEnabled = checked
                         }
 
@@ -254,10 +281,16 @@ Dialog {
                             enabled: notificationsSwitch.checked
                             Layout.preferredWidth: 120
                             activeFocusOnTab: true
+                            KeyNavigation.tab: authBtn
+                            KeyNavigation.backtab: notificationsSwitch
                             Accessible.name: settingsDialog.tr(
                                                  "Anticipo notifica",
                                                  "Notification lead time"
                                              )
+                            Accessible.description: settingsDialog.tr(
+                                                        "Seleziona quanti minuti prima ricevere la notifica",
+                                                        "Select how many minutes before to receive the notification"
+                                                    )
                             model: [
                                 { label: "5 min", value: 5 },
                                 { label: "15 min", value: 15 },
@@ -348,6 +381,8 @@ Dialog {
                         implicitWidth: 100
                         implicitHeight: 38
                         activeFocusOnTab: true
+                        KeyNavigation.tab: closeBtn
+                        KeyNavigation.backtab: notificationsSwitch.checked ? notifyLeadCombo : notificationsSwitch
                         Accessible.role: Accessible.Button
                         Accessible.name: appController.isAuthenticated
                                          ? settingsDialog.tr("Esegui logout", "Perform logout")
@@ -412,8 +447,14 @@ Dialog {
             Layout.preferredHeight: 45
             text: settingsDialog.tr("CONFERMA E CHIUDI", "CONFIRM AND CLOSE")
             activeFocusOnTab: true
+            KeyNavigation.tab: headerCloseButton
+            KeyNavigation.backtab: authBtn
             Accessible.role: Accessible.Button
             Accessible.name: settingsDialog.tr("Conferma e chiudi", "Confirm and close")
+            Accessible.description: settingsDialog.tr(
+                                        "Salva le impostazioni correnti e chiude la finestra",
+                                        "Saves current settings and closes the window"
+                                    )
             
             background: Rectangle {
                 color: closeBtn.hovered ? "#4a5568" : "#2d3748"
