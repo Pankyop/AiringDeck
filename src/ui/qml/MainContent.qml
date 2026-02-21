@@ -955,6 +955,11 @@ FocusScope {
         z: 12000
         visible: appController.updateAvailable
         focus: visible
+        onVisibleChanged: {
+            if (visible) {
+                closeUpdateDialogButton.forceActiveFocus()
+            }
+        }
 
         ShaderEffectSource {
             id: updateOverlaySource
@@ -996,6 +1001,8 @@ FocusScope {
             border.color: "#3b82f6"
             border.width: 1
             clip: true
+            Accessible.role: Accessible.Dialog
+            Accessible.name: mainContent.tr("Aggiornamento disponibile", "Update available")
 
             ColumnLayout {
                 id: updateDialogContent
@@ -1019,6 +1026,15 @@ FocusScope {
                         id: closeUpdateDialogButton
                         text: "➜"
                         font.pixelSize: 17
+                        activeFocusOnTab: true
+                        KeyNavigation.tab: updateNowButton
+                        KeyNavigation.backtab: updateNowButton
+                        Accessible.role: Accessible.Button
+                        Accessible.name: mainContent.tr("Chiudi avviso aggiornamento", "Close update notice")
+                        Accessible.description: mainContent.tr(
+                                                    "Chiude l'avviso senza aggiornare",
+                                                    "Dismisses the notice without updating"
+                                                )
                         onClicked: appController.dismissUpdateNotice()
                         ToolTip.visible: hovered
                         ToolTip.text: mainContent.tr("Chiudi avviso", "Close notice")
@@ -1064,6 +1080,15 @@ FocusScope {
                     id: updateNowButton
                     text: mainContent.tr("Aggiorna ora", "Update now")
                     Layout.alignment: Qt.AlignRight
+                    activeFocusOnTab: true
+                    KeyNavigation.tab: closeUpdateDialogButton
+                    KeyNavigation.backtab: closeUpdateDialogButton
+                    Accessible.role: Accessible.Button
+                    Accessible.name: mainContent.tr("Aggiorna ora", "Update now")
+                    Accessible.description: mainContent.tr(
+                                                "Apre la pagina di download dell'aggiornamento",
+                                                "Opens the update download page"
+                                            )
                     onClicked: appController.openUpdatePage()
                     background: Rectangle {
                         color: updateNowButton.hovered ? "#2563eb" : "#1d4ed8"
