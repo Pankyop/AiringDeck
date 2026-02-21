@@ -12,6 +12,8 @@ Dialog {
     
     x: (parent.width - width) / 2
     y: (parent.height - height) / 2
+    onOpened: Qt.callLater(function() { closeAboutButton.forceActiveFocus() })
+    Keys.onEscapePressed: aboutDialog.close()
     
     background: Rectangle {
         color: "#1a1f26"
@@ -94,12 +96,18 @@ Dialog {
         }
         
         Button {
+            id: closeAboutButton
             text: appController.appLanguage === "en" ? "CLOSE" : "CHIUDI"
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 120
             activeFocusOnTab: true
+            KeyNavigation.tab: closeAboutButton
+            KeyNavigation.backtab: closeAboutButton
             Accessible.role: Accessible.Button
             Accessible.name: appController.appLanguage === "en" ? "Close dialog" : "Chiudi finestra"
+            Accessible.description: appController.appLanguage === "en"
+                                    ? "Closes the about dialog"
+                                    : "Chiude la finestra informazioni"
             onClicked: aboutDialog.close()
             
             background: Rectangle {
