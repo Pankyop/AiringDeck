@@ -46,11 +46,16 @@ class AniListService:
                 )
                 response.raise_for_status()
                 data = response.json()
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid response payload type")
 
                 if 'errors' in data:
                     raise Exception(data['errors'][0]['message'])
 
                 return data.get('data', {})
+            except ValueError:
+                last_error = Exception("InvalidResponse: AniList returned invalid JSON")
+                logger.warning("API attempt %d/%d failed: invalid JSON payload", attempt + 1, retries)
             except requests.exceptions.Timeout:
                 last_error = Exception("Timeout: AniList request timed out")
                 logger.warning("API attempt %d/%d timed out", attempt + 1, retries)
