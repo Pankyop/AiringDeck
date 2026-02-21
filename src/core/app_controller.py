@@ -63,6 +63,10 @@ class AppController(QObject):
         self._last_notification_media_id = None
         self._tray_icon = None
         self._anime_by_id = {}
+        self._sync_in_progress = False
+        self._sync_queued = False
+        self._sync_retry_attempts = 0
+        self._max_sync_retry_attempts = 1
         self._update_available = False
         self._update_check_in_progress = False
         self._update_latest_version = ""
@@ -670,17 +674,87 @@ class AppController(QObject):
         """Sync anime list from AniList"""
         logger.info("Sync anime list requested")
         if not self._is_authenticated:
+            self._set_loading(False, self._msg_login_required_sync())
             return
 
         user_id = self._user_info.get("id")
         if not user_id:
+            self._set_loading(False, self._msg_missing_profile_for_sync())
             return
-            
+
+        if self._sync_in_progress:
+            self._sync_queued = True
+            self._set_loading(True, self._msg_sync_queued())
+            return
+
+        self._start_sync_worker(user_id)
+
+    def _start_sync_worker(self, user_id: int):
+        self._sync_in_progress = True
         self._set_loading(True, self._msg_syncing_anime_list())
         worker = Worker(self._anilist_service.get_watching_anime, user_id)
-        worker.signals.result.connect(self._on_anime_list_result)
-        worker.signals.error.connect(self._on_error)
+        worker.signals.result.connect(self._on_sync_worker_result)
+        worker.signals.error.connect(self._on_sync_worker_error)
         self._thread_pool.start(worker)
+
+    def _on_sync_worker_result(self, anime_list):
+        self._sync_in_progress = False
+        self._sync_retry_attempts = 0
+        self._on_anime_list_result(anime_list)
+        self._drain_queued_sync_request()
+
+    def _on_sync_worker_error(self, err):
+        self._sync_in_progress = False
+        err_text = self._extract_error_text(err)
+        lower = err_text.lower()
+        user_id = self._user_info.get("id")
+
+        if (
+            self._is_transient_sync_error(lower)
+            and self._sync_retry_attempts < self._max_sync_retry_attempts
+            and self._is_authenticated
+            and user_id
+        ):
+            self._sync_retry_attempts += 1
+            logger.warning(
+                "Transient sync error, auto-retrying (%d/%d): %s",
+                self._sync_retry_attempts,
+                self._max_sync_retry_attempts,
+                err_text,
+            )
+            self._set_loading(
+                True,
+                self._msg_retrying_sync(self._sync_retry_attempts, self._max_sync_retry_attempts),
+            )
+            self._start_sync_worker(int(user_id))
+            return
+
+        self._sync_retry_attempts = 0
+        self._on_error(err)
+        self._drain_queued_sync_request()
+
+    def _drain_queued_sync_request(self):
+        if not self._sync_queued:
+            return
+        self._sync_queued = False
+        if self._sync_in_progress or not self._is_authenticated:
+            return
+        user_id = self._user_info.get("id")
+        if not user_id:
+            return
+        self._start_sync_worker(int(user_id))
+
+    def _is_transient_sync_error(self, lower_error: str) -> bool:
+        return (
+            "timeout" in lower_error
+            or "connectionerror" in lower_error
+            or "unable to reach" in lower_error
+            or "http429" in lower_error
+            or "rate limit" in lower_error
+            or "http5" in lower_error
+            or "requesterror" in lower_error
+            or "invalidresponse" in lower_error
+        )
     
     @Slot(int)
     def selectAnime(self, anime_id: int):
@@ -1017,6 +1091,30 @@ class AppController(QObject):
 
     def _msg_syncing_anime_list(self) -> str:
         return self._tr("Sincronizzazione lista anime...", "Syncing anime list...")
+
+    def _msg_sync_queued(self) -> str:
+        return self._tr(
+            "Sincronizzazione già in corso, nuova richiesta in coda...",
+            "Sync already running, queued a new request...",
+        )
+
+    def _msg_retrying_sync(self, attempt: int, max_attempts: int) -> str:
+        return self._tr(
+            f"Rete instabile, nuovo tentativo {attempt}/{max_attempts}...",
+            f"Unstable network, retrying {attempt}/{max_attempts}...",
+        )
+
+    def _msg_login_required_sync(self) -> str:
+        return self._tr(
+            "Effettua il login per sincronizzare la lista.",
+            "Login is required to sync the list.",
+        )
+
+    def _msg_missing_profile_for_sync(self) -> str:
+        return self._tr(
+            "Profilo non pronto, riprova tra poco.",
+            "Profile not ready yet, try again shortly.",
+        )
 
     def _msg_synced_count(self, count: int) -> str:
         return self._tr(f"Sincronizzati {count} anime", f"Synced {count} anime")
