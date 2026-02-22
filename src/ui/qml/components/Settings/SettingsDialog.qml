@@ -22,7 +22,7 @@ Dialog {
     Keys.onEscapePressed: settingsDialog.close()
     
     width: 480
-    height: 620
+    height: 700
     
     standardButtons: Dialog.NoButton
     
