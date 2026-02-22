@@ -44,13 +44,13 @@ english.AppLanguageTitle=Application language
 english.AppLanguageDescription=Choose the default language for AiringDeck.
 english.AppLanguageSub=You can change this later in Settings.
 english.AppLanguageEnglish=English (Default)
-english.AppLanguageItalian=Italiano
+english.AppLanguageItalian=Italian
 
-italian.AppLanguageTitle=Lingua applicazione
-italian.AppLanguageDescription=Scegli la lingua predefinita di AiringDeck.
-italian.AppLanguageSub=Potrai cambiarla in seguito nelle Impostazioni.
-italian.AppLanguageEnglish=English (Predefinito)
-italian.AppLanguageItalian=Italiano
+italian.AppLanguageTitle=Application language
+italian.AppLanguageDescription=Choose the default language for AiringDeck.
+italian.AppLanguageSub=You can change this later in Settings.
+italian.AppLanguageEnglish=English (Default)
+italian.AppLanguageItalian=Italian
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
