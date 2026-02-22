@@ -12,8 +12,6 @@ Desktop app nativa per tracciare le uscite anime con integrazione AniList.
 - ✅ Low memory footprint (~50MB)
 - ✅ Windows native .exe
 
-## 🖼️ UI Screenshots
-
 ## 🛠️ Tech Stack
 
 - **UI Framework**: Qt 6.7 (PySide6)
