@@ -9,6 +9,7 @@ class AnimeModel(QAbstractListModel):
     AiringTimeRole = Qt.UserRole + 3
     IsTodayRole = Qt.UserRole + 4
     ProgressRole = Qt.UserRole + 5
+    RatingDisplayRole = Qt.UserRole + 6
     
     countChanged = Signal()
     
@@ -27,7 +28,8 @@ class AnimeModel(QAbstractListModel):
             self.DisplayTitleRole: b"display_title",
             self.AiringTimeRole: b"airing_time_formatted",
             self.IsTodayRole: b"is_today",
-            self.ProgressRole: b"progress"
+            self.ProgressRole: b"progress",
+            self.RatingDisplayRole: b"rating_display",
         }
 
     def rowCount(self, parent=QModelIndex()):
@@ -49,6 +51,8 @@ class AnimeModel(QAbstractListModel):
             return entry.get('is_today', False)
         elif role == self.ProgressRole:
             return entry.get('progress', 0)
+        elif role == self.RatingDisplayRole:
+            return entry.get('rating_display', "--")
             
         return None
 
@@ -75,6 +79,7 @@ class AnimeModel(QAbstractListModel):
                     self.AiringTimeRole,
                     self.IsTodayRole,
                     self.ProgressRole,
+                    self.RatingDisplayRole,
                 ],
             )
             return
