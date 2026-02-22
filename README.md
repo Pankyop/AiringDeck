@@ -102,6 +102,30 @@ Per rendere obbligatoria la compilazione nativa:
 python scripts/build_windows.py --cpu-profile avx2 --require-native
 ```
 
+### Build installer Windows (.exe setup)
+
+Prerequisito: installare Inno Setup 6 (ISCC.exe).
+
+Comando completo (build app + installer):
+
+```bash
+python scripts/build_windows_installer.py
+```
+
+Se `dist/AiringDeck.exe` esiste gia:
+
+```bash
+python scripts/build_windows_installer.py --skip-build-exe
+```
+
+Output:
+- `dist/AiringDeck-Setup-<version>.exe`
+
+Caratteristiche installer:
+- selezione lingua installer (EN/IT, default EN),
+- pagina dedicata alla lingua applicazione (EN/IT, default EN),
+- salvataggio lingua app in `HKCU\Software\AiringDeck\AiringDeck\app_language`.
+
 ## ⚡ Native Optimization
 
 - Il filtro testuale della lista anime usa un modulo C (`src/core/_airingdeck_native.c`) per ridurre overhead nei loop Python.
