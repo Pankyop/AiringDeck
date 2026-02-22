@@ -31,6 +31,7 @@ Item {
     property string displayTitle: model.display_title || (modelData ? modelData.display_title : "Unknown")
     property string airingTime: model.airing_time_formatted || (modelData ? modelData.airing_time_formatted : "TBA")
     property bool isToday: model.is_today !== undefined ? model.is_today : (modelData ? modelData.is_today : false)
+    property string ratingDisplay: model.rating_display || (modelData ? modelData.rating_display : "--")
     
     Rectangle {
         id: cardContainer
@@ -167,7 +168,15 @@ Item {
                     font.pixelSize: 11
                     font.bold: !!animeData.nextAiringEpisode
                 }
-                
+
+                Text {
+                    Layout.fillWidth: true
+                    text: (root.isEnglishUi ? "Score: " : "Voto: ") + ratingDisplay
+                    color: ratingDisplay !== "--" ? "#f59e0b" : "#9ca3af"
+                    font.pixelSize: 11
+                    font.bold: ratingDisplay !== "--"
+                }
+                 
                 Item { Layout.fillHeight: true }
             }
         }
