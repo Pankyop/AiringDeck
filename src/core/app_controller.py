@@ -778,6 +778,70 @@ class AppController(QObject):
             return titles.get('english') or titles.get('romaji') or self._tr("Titolo sconosciuto", "Unknown Title")
         return titles.get('romaji') or titles.get('english') or self._tr("Titolo sconosciuto", "Unknown Title")
 
+    def _format_rating_display(self, score_value, score_scale) -> str:
+        try:
+            value = float(score_value)
+            scale = int(score_scale)
+        except (TypeError, ValueError):
+            return "--"
+        if value <= 0:
+            return "--"
+        if scale == 10:
+            return f"{value:.1f}/10"
+        return f"{int(round(value))}/100"
+
+    def _apply_entry_rating(self, entry, score_value, score_scale):
+        display = self._format_rating_display(score_value, score_scale)
+        sort_score = -1.0
+        if display != "--":
+            try:
+                value = float(score_value)
+                scale = float(score_scale)
+                if scale > 0:
+                    sort_score = (value / scale) * 100.0
+            except (TypeError, ValueError):
+                sort_score = -1.0
+        entry["rating_value"] = score_value if display != "--" else None
+        entry["rating_scale"] = score_scale if display != "--" else None
+        entry["rating_display"] = display
+        entry["rating_sort_score"] = sort_score
+
+    def _apply_default_anilist_rating(self, entry):
+        media = entry.get("media", {})
+        score = media.get("averageScore")
+        try:
+            value = float(score)
+        except (TypeError, ValueError):
+            value = None
+        if value is None or value <= 0:
+            self._apply_entry_rating(entry, None, None)
+            return
+        self._apply_entry_rating(entry, value, 100)
+
+    def _refresh_entry_ratings(self):
+        if not self._full_anime_list:
+            return
+        changed = False
+        for entry in self._full_anime_list:
+            before = (
+                entry.get("rating_display"),
+                entry.get("rating_sort_score"),
+            )
+            self._apply_default_anilist_rating(entry)
+            after = (
+                entry.get("rating_display"),
+                entry.get("rating_sort_score"),
+            )
+            if before != after:
+                changed = True
+
+        if changed:
+            self._data_revision += 1
+            self._ui_model_key = None
+            self._update_ui_models()
+            self.animeListChanged.emit()
+            self.selectedAnimeChanged.emit()
+
     def _format_countdown(self, airing_at):
         """Format countdown with support for days, hours, minutes"""
         now = datetime.now()
@@ -901,7 +965,7 @@ class AppController(QObject):
         if self._sort_field == "score":
             return sorted(
                 entries,
-                key=lambda e: int(e.get("media", {}).get("averageScore") or -1),
+                key=lambda e: float(e.get("rating_sort_score", e.get("media", {}).get("averageScore") or -1)),
                 reverse=reverse,
             )
 
@@ -935,6 +999,7 @@ class AppController(QObject):
             
             # Centralize Title
             entry['display_title'] = self._get_display_title(media)
+            self._apply_default_anilist_rating(entry)
             titles = media.get("title", {})
             romaji = titles.get("romaji") or ""
             english = titles.get("english") or ""
@@ -975,6 +1040,7 @@ class AppController(QObject):
 
         self._update_ui_models()
         self.animeListChanged.emit()
+        self._refresh_entry_ratings()
         self._check_episode_notifications()
         self._set_loading(False, self._msg_synced_count(len(anime_list)))
         logger.info("Synced %d anime. Day counts: %s", len(anime_list), self._daily_counts)
