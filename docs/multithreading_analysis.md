@@ -1,31 +1,46 @@
-# Analisi Tecnica: Multithreading & Multi-core in AiringDeck
+# Technical Analysis: Multithreading & Multi-core in AiringDeck
 
-Questa analisi esplora l'adozione del multithreading e l'uso di processori multi-core per migliorare le prestazioni e l'esperienza utente dell'applicazione.
+This analysis reviews multithreading adoption and multi-core usage to improve
+performance and user experience.
 
-## 1. Stato Attuale (v3.1.2)
-L'applicazione **utilizza già** il multithreading in modo strategico:
-- **Operazioni I/O Async**: Tutte le chiamate alle API di AniList (Sync lista, Profilo utente) sono gestite tramite un `QThreadPool`. Questo evita che l'interfaccia si blocchi (freeze) durante l'attesa dei dati di rete.
-- **Rendering UI**: Il motore QML (QtQuick) gestisce il caricamento delle immagini e delle animazioni in thread separati rispetto alla logica applicativa principale.
+## 1. Current state (v3.x)
 
-## 2. Ha senso usare più core/thread?
+The application already uses multithreading strategically:
 
-### Risposta "Non Tecnica" (User Experience)
-Sì, ma solo per compiti specifici. 
-Attualmente l'app è molto fluida perché i compiti "pesanti" (scaricare dati) avvengono già "dietro le quinte". Aggiungere più thread non renderebbe necessariamente l'app più veloce se la connessione internet rimane la stessa, ma assicurerebbe che l'interfaccia rimanga reattiva a prescindere dal carico di dati.
+- **Async I/O operations**: AniList API calls (list sync, user profile) run via
+  `QThreadPool`, preventing UI freezes while waiting for network responses.
+- **UI rendering**: the QML engine (QtQuick) handles image loading and animations
+  on threads separate from main app logic.
 
-### Risposta Tecnica (Architettura Python/Qt)
-In Python esiste il **GIL (Global Interpreter Lock)**, che impedisce l'esecuzione di vero codice Python in parallelo su più core CPU per compiti di puro calcolo. Tuttavia:
+## 2. Does using more cores/threads make sense?
 
-1. **I/O-Bound (Rete/Disco)**: Il multithreading è perfetto. Possiamo scaricare dati e aggiornare il database contemporaneamente senza rallentamenti.
-2. **CPU-Bound (Elaborazione Dati)**: Se avessimo migliaia di anime con filtri complessi, potremmo usare il **multiprocessing** per sfruttare veramente i multi-core, ma per il carico attuale (decine/centinaia di anime) il multithreading di Qt è la scelta più equilibrata per memoria e complessità.
+### Non-technical answer (UX)
 
-## 3. Potenziali Miglioramenti Futuri
+Yes, but only for specific tasks.
+The app is already fluid because heavy tasks (data download) happen in the
+background. Adding more threads does not automatically make it faster if network
+speed is the bottleneck, but it helps keep UI responsiveness under load.
 
-| Area | Beneficio | Tecnica Consigliata |
+### Technical answer (Python/Qt architecture)
+
+Python has the **GIL (Global Interpreter Lock)**, which prevents true parallel
+execution of pure Python CPU-bound code across cores. However:
+
+1. **I/O-bound tasks (network/disk)**: multithreading is a good fit.
+2. **CPU-bound tasks (data processing)**: for very large datasets and complex
+   processing, `multiprocessing` can leverage multiple cores. For current loads
+   (dozens/hundreds of anime), Qt threading is the best tradeoff for memory and complexity.
+
+## 3. Potential future improvements
+
+| Area | Benefit | Suggested technique |
 | :--- | :--- | :--- |
-| **Pre-caching Immagini** | Download delle copertine in background prima che l'utente le visualizzi. | `QRunnable` + `QThreadPool` |
-| **Background Sync** | Sincronizzazione automatica periodica senza intervento dell'utente. | `QThread` dedicato a basso priorità |
-| **Export/Export Pesante** | Generazione di report o statistiche complesse. | `Multiprocessing` (per bypassare il GIL) |
+| **Image pre-caching** | Download covers in background before user opens details. | `QRunnable` + `QThreadPool` |
+| **Background sync** | Periodic automatic sync without manual action. | Low-priority dedicated `QThread` |
+| **Heavy export/reporting** | Generate complex reports/statistics. | `multiprocessing` (to bypass GIL) |
 
-## Conclusione
-L'architettura attuale è **ottimizzata per il multithreading** per quel che riguarda la reattività dell'interfaccia. L'uso di multi-core per il calcolo parallelo non è attualmente necessario data la natura leggera dei dati trattati, ma l'app è strutturata per scalarvi se necessario. ✨🚀
+## Conclusion
+
+The current architecture is optimized for multithreading in terms of UI
+responsiveness. True multi-core parallel compute is not currently required by
+the data profile, but the app can evolve toward it if needed.

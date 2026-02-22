@@ -1,27 +1,27 @@
 # DEV Profiling Guide
 
-Questa modalita esegue AiringDeck in contesto development con profiling Python attivo.
+This mode runs AiringDeck in a development context with Python profiling enabled.
 
-## Comando rapido
+## Quick command
 
 ```bash
 python scripts/profile_dev.py --duration-ms 15000 --top 40
 ```
 
-## Cosa fa
+## What it does
 
-1. Avvia l'app con `cProfile`.
-2. Imposta variabili ambiente:
+1. Starts the app with `cProfile`.
+2. Sets environment variables:
    - `AIRINGDECK_PROFILE=1`
-   - `AIRINGDECK_AUTO_EXIT_MS=<durata>`
-3. Chiude automaticamente l'app dopo la durata specificata.
-4. Salva in `profiles/`:
-   - file raw `.prof`
-   - report top cumulative
-   - report top self-time
-   - log stdout/stderr
+   - `AIRINGDECK_AUTO_EXIT_MS=<duration>`
+3. Automatically closes the app after the configured duration.
+4. Writes outputs into `profiles/`:
+   - raw `.prof` file
+   - top cumulative report
+   - top self-time report
+   - stdout/stderr log
 
-## Note
+## Notes
 
-- Questo profiling misura soprattutto il lato Python.
-- Per profiling QML/scene graph usare anche Qt Creator QML Performance Monitor.
+- This profiling mode mainly measures Python-side execution.
+- For QML/scene graph profiling, also use Qt Creator QML Performance Monitor.

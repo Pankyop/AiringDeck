@@ -1,75 +1,100 @@
-# AiringDeck - Processo Release e Tag
+# AiringDeck - Release and Tag Process
 
-Ultimo aggiornamento: 2026-02-19
+Last updated: 2026-02-22
 
 ## 1) Scope
 
-Questo documento definisce il processo minimo per pubblicare release coerenti
-con SemVer e prerelease (`-beta`, `-rc`).
+This document defines the minimum process to publish releases aligned with
+SemVer and prerelease identifiers (`-beta`, `-rc`).
 
-## 2) Prerequisiti
+## 2) Prerequisites
 
-- Branch aggiornato e sincronizzato con `origin/master`.
-- Pipeline CI verde.
-- Working tree pulito (`git status` senza modifiche da committare).
+- Branch updated and synced with `origin/master`.
+- CI pipeline green.
+- Clean working tree (`git status` with nothing to commit).
 
-## 3) Checklist pre-release
+## 3) Pre-release checklist
 
-1. Allineare versione in:
+1. Align version in:
 `src/version.py`, `pyproject.toml`, `setup.py`.
 
-2. Eseguire quality gate:
+2. Run quality gates:
 `python scripts/run_quality_suite.py`.
 
-3. Eseguire check runtime smoke:
+3. Run runtime smoke check:
 `AIRINGDECK_AUTO_EXIT_MS=12000 python src/main.py`.
 
-4. Aggiornare `CHANGELOG.md`:
-- spostare voci da `Unreleased` alla nuova versione.
-- aggiungere data release (`YYYY-MM-DD`).
+4. Update `CHANGELOG.md`:
+- move entries from `Unreleased` into the new version section,
+- add release date (`YYYY-MM-DD`).
 
-5. Generare installer Windows:
+5. Generate Windows installer:
 `python scripts/build_windows_installer.py --skip-build-exe`
-  (oppure senza `--skip-build-exe` per rifare anche la build app).
+  (or omit `--skip-build-exe` to rebuild the app first).
 
-## 4) Commit release
+## 4) Release commit
 
-Esempio commit:
+Example:
 
 ```bash
 git add src/version.py pyproject.toml setup.py CHANGELOG.md
 git commit -m "chore(release): 3.3.0"
 ```
 
-## 5) Creazione tag
+## 5) Tag creation
 
-Usare sempre tag annotati:
+Always use annotated tags:
 
 ```bash
 git tag -a v3.3.0 -m "AiringDeck 3.3.0"
 ```
 
-Pubblicazione:
+Publish:
 
 ```bash
 git push origin master
 git push origin v3.3.0
 ```
 
-## 6) Regole incremento versione
+## 6) Version increment rules
 
-- `PATCH` (`X.Y.Z`): bugfix/hardening senza breaking changes.
-- `MINOR` (`X.Y+1.0`): feature backward-compatible.
+- `PATCH` (`X.Y.Z`): bugfix/hardening without breaking changes.
+- `MINOR` (`X.Y+1.0`): backward-compatible features.
 - `MAJOR` (`X+1.0.0`): breaking changes.
 - Prerelease:
-- `X.Y.Z-beta.N` durante validazione funzionale.
-- `X.Y.Z-rc.N` in freeze pre-stable.
+- `X.Y.Z-beta.N` during functional validation.
+- `X.Y.Z-rc.N` during pre-stable freeze.
 
-## 7) Definition of Done release
+## 7) Release Definition of Done
 
-- CI verde.
-- Changelog aggiornato.
-- Tag pubblicato.
-- Build smoke riuscita.
-- Installer Windows generato (`dist/AiringDeck-Setup-<version>.exe`).
-- Nessun blocco P0 aperto in roadmap.
+- CI green.
+- Changelog updated.
+- Tag published.
+- Build smoke successful.
+- Windows installer generated (`dist/AiringDeck-Setup-<version>.exe`).
+- No open P0 blockers in roadmap.
+
+## 8) Automated X release post
+
+The repository includes `.github/workflows/x_release.yml`, which triggers on:
+- GitHub release publication (`release.published`)
+- manual dispatch (`workflow_dispatch`)
+
+It runs `scripts/post_to_x.py` and publishes a release thread from
+`CHANGELOG.md`.
+
+Required repository secrets:
+- `X_POST_ENABLED` = `true` (if missing/false, script runs in dry-run)
+- `X_API_KEY`
+- `X_API_SECRET`
+- `X_ACCESS_TOKEN`
+- `X_ACCESS_TOKEN_SECRET`
+
+Optional:
+- `X_BEARER_TOKEN` (used only if OAuth1 credentials are not provided)
+
+Manual verification (no posting):
+
+```bash
+python scripts/post_to_x.py --tag v3.3.0 --dry-run
+```

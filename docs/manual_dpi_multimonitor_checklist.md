@@ -1,87 +1,87 @@
 # Manual Checklist - Multi-Monitor and DPI
 
-Ultimo aggiornamento: 2026-02-19
+Last updated: 2026-02-19
 
-## 1) Scopo
+## 1) Goal
 
-Ridurre regressioni visuali su layout QML (testi tagliati, overlap, elementi fuori viewport)
-in scenari reali con monitor multipli e scaling diversi.
+Reduce visual regressions in QML layouts (cut text, overlap, out-of-viewport items)
+under real multi-monitor and mixed-scaling scenarios.
 
-## 2) Setup minimo
+## 2) Minimum setup
 
 - OS: Windows 10/11.
-- Display A: schermo laptop (es. 125%).
-- Display B: monitor esterno/TV (es. 100%).
-- App in build corrente (`dist/AiringDeck.exe`) e in run Python (`python src/main.py`).
+- Display A: laptop screen (for example 125% scaling).
+- Display B: external monitor/TV (for example 100% scaling).
+- App in current build (`dist/AiringDeck.exe`) and Python run (`python src/main.py`).
 
-## 3) Matrice test obbligatoria
+## 3) Required test matrix
 
-- Risoluzioni:
+- Resolutions:
   - 1920x1080
-  - 2560x1440 (se disponibile)
+  - 2560x1440 (if available)
 - Scaling:
   - 100%
   - 125%
   - 150%
-- Modalita:
-  - finestra normale
-  - massimizzata
-  - fullscreen (quando applicabile)
-- Posizionamento:
-  - avvio su monitor principale
-  - trascinamento e uso completo su monitor secondario
+- Modes:
+  - normal window
+  - maximized
+  - fullscreen (when applicable)
+- Placement:
+  - startup on primary monitor
+  - drag and full use on secondary monitor
 
-## 4) Checklist UI da validare
+## 4) UI checklist
 
-### Header + filtri
+### Header + filters
 
-- Il campo ricerca non si sovrappone ai controlli a destra.
-- Combo genere/sort mostrano testo leggibile e non tagliato.
-- Pulsanti `ASC/DESC` e `Reset` sempre visibili.
-- Checkbox `Solo oggi` leggibile su tutti gli scaling.
+- Search field does not overlap controls on the right.
+- Genre/sort combos show readable non-truncated text.
+- `ASC/DESC` and `Reset` buttons are always visible.
+- `Only today` checkbox remains readable on all scaling levels.
 
-### Calendario e card
+### Calendar and cards
 
-- Titoli card lunghi su piu righe senza taglio orizzontale.
-- Badge episodio (`Ep.`) sempre dentro card.
-- Nessun overlap tra card in `Flow` durante resize.
+- Long card titles wrap to multiple lines without horizontal clipping.
+- Episode badge (`Ep.`) always stays inside the card.
+- No overlap between cards in `Flow` while resizing.
 
-### Sidebar dettagli
+### Details sidebar
 
-- Cover principale sempre visibile (o fallback testuale).
-- Titolo anime lungo non deve essere tagliato sul bordo destro.
-- Campi `Progresso/Prossimo` allineati e leggibili.
+- Main cover is always visible (or textual fallback appears).
+- Long anime title must not clip against the right edge.
+- `Progress/Next` fields stay aligned and readable.
 
-### Dialog e impostazioni
+### Dialogs and settings
 
-- About e Settings centrati e completamente visibili.
-- Pulsanti di chiusura accessibili da tastiera (`Tab`, `Enter`).
-- Cambio lingua non rompe layout (IT/EN).
+- About and Settings dialogs are centered and fully visible.
+- Close controls are keyboard accessible (`Tab`, `Enter`).
+- Language switch does not break layout (IT/EN).
 
-## 5) Checklist accessibilita tastiera
+## 5) Keyboard accessibility checklist
 
-- Tab order continuo:
-  - ricerca -> sync -> profilo/login -> filtri -> sort -> reset.
-- `Enter`/`Space` funzionano su:
+- Continuous tab order:
+  - search -> sync -> profile/login -> filters -> sort -> reset.
+- `Enter`/`Space` work on:
   - sync
-  - login/profilo
-  - card anime selezionabili
-- Focus visivo percepibile sugli elementi interattivi.
+  - login/profile
+  - selectable anime cards
+- Focus indicator is visible on interactive elements.
 
-## 6) Criteri di accettazione
+## 6) Acceptance criteria
 
-- Nessun testo critico tagliato.
-- Nessun controllo essenziale non raggiungibile.
-- Nessun overlap bloccante in header/filtri/sidebar.
-- Nessun crash/freeze durante resize, cambio monitor, cambio scaling.
+- No critical text clipping.
+- No essential control unreachable.
+- No blocking overlap in header/filters/sidebar.
+- No crash/freeze during resize, monitor switch, or scaling switch.
 
-## 7) Evidenze da allegare
+## 7) Evidence to attach
 
-- Screenshot:
+- Screenshots:
   - `resources/images/qa/dpi_100_main.png`
   - `resources/images/qa/dpi_125_main.png`
   - `resources/images/qa/dpi_150_secondary.png`
-- Nota breve per ogni eventuale anomalia con:
+- Short note for each anomaly with:
   - monitor/scaling
-  - sezione UI
-  - comportamento osservato
+  - UI section
+  - observed behavior

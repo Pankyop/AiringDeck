@@ -1,53 +1,53 @@
-# VERSIONE - Stato Release
+# RELEASE STATUS
 
-Ultimo aggiornamento: 22 febbraio 2026
+Last updated: February 22, 2026
 
-## Versione corrente
+## Current version
 
 - `3.3.0` (Stable)
 
-File allineati:
+Aligned files:
 - `src/version.py`
 - `pyproject.toml`
 - `setup.py`
 
-## Gate release eseguiti
+## Executed release gates
 
-1. Quality suite completa:
-- Comando: `python scripts/run_quality_suite.py`
-- Esito: **PASS**
-- Risultati: `73 passed`, coverage totale `84%`
+1. Full quality suite:
+- Command: `python scripts/run_quality_suite.py`
+- Result: **PASS**
+- Outcome: `73 passed`, total coverage `84%`
 
-2. Smoke runtime da sorgente:
-- Comando: `AIRINGDECK_AUTO_EXIT_MS=12000 python src/main.py`
-- Esito: **PASS**
+2. Runtime smoke from source:
+- Command: `AIRINGDECK_AUTO_EXIT_MS=12000 python src/main.py`
+- Result: **PASS**
 
 3. Build Windows:
-- Comando: `python scripts/build_windows.py`
-- Esito: **PASS**
+- Command: `python scripts/build_windows.py`
+- Result: **PASS**
 - Output: `dist/AiringDeck.exe`
 
-4. Smoke runtime su build dist:
-- Avvio `dist/AiringDeck.exe` con auto-exit
-- Esito: **PASS**
+4. Runtime smoke on packaged build:
+- Start `dist/AiringDeck.exe` with auto-exit
+- Result: **PASS**
 
 5. Build installer Windows:
-- Comando: `python scripts/build_windows_installer.py --skip-build-exe`
-- Esito: **PASS**
+- Command: `python scripts/build_windows_installer.py --skip-build-exe`
+- Result: **PASS**
 - Output: `dist/AiringDeck-Setup-3.3.0.exe`
 
-## Modifiche chiave incluse nella release
+## Key changes included in this release
 
-- Consolidamento qualità e processo release (CI + changelog + release process).
-- Rimozione completa della feature "fonte voti esterna" e ritorno a sola fonte AniList.
-- Semplificazione UI voto (nessuna etichetta provider).
-- Pulizia codice/ruoli model legati ai provider rating esterni.
+- Quality and release process consolidation (CI + changelog + release process).
+- Complete removal of external rating-source feature, reverted to AniList-only scores.
+- Simplified score UI (no provider label).
+- Cleanup of model roles and code paths related to external rating providers.
 
-## Artefatti pronti per pubblicazione
+## Release-ready artifacts
 
 - `dist/AiringDeck.exe`
 - `dist/AiringDeck-Setup-3.3.0.exe`
 
-## Prossimo ciclo consigliato
+## Recommended next cycle
 
-- `3.3.1` patch (hardening post-release e ulteriore copertura test su branch `app_controller.py`).
+- `3.3.1` patch (post-release hardening and increased test coverage on `app_controller.py` branches).

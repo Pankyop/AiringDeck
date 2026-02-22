@@ -1,6 +1,10 @@
 # AiringDeck
 
-Desktop app nativa per tracciare le uscite anime con integrazione AniList.
+Native desktop app to track anime airing schedules with AniList integration.
+
+![Release](https://img.shields.io/github/v/release/Pankyop/AiringDeck?display_name=tag)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-0078D6)
 
 ## 🚀 Features
 
@@ -50,14 +54,14 @@ python src/main.py
 
 ### Update Notifications
 
-L'app controlla automaticamente gli aggiornamenti all'avvio.
-Se trova una versione piu recente, mostra un avviso con:
+The app checks for updates automatically at startup.
+When a newer version is available, it shows a notice with:
 
-- cosa cambia per l'utente (note release),
-- pulsante `Aggiorna ora` (apre la pagina release),
-- freccia per chiudere l'avviso.
+- user-facing release notes,
+- an `Update now` button (opens the release page),
+- an arrow button to dismiss the notice.
 
-Configurazione opzionale via variabili ambiente:
+Optional environment configuration:
 
 ```bash
 AIRINGDECK_UPDATE_REPOSITORY=Pankyop/AiringDeck
@@ -74,21 +78,21 @@ python scripts/build_windows.py
 
 Output: `dist/AiringDeck.exe`
 
-Build ottimizzato per CPU recenti (default `avx2`, adatto a Intel 10th gen+ e AMD Zen2+/serie 4000+):
+Build optimized for modern CPUs (default `avx2`, suitable for Intel 10th gen+ and AMD Zen2+/Ryzen 4000+):
 
 ```bash
 python scripts/build_windows.py --cpu-profile avx2
 ```
 
-Profilo AVX-512 opzionale (solo su macchine che supportano AVX-512):
+Optional AVX-512 profile (only on machines that support AVX-512):
 
 ```bash
 python scripts/build_windows.py --cpu-profile avx512
 ```
 
-Nota: il build prova a compilare automaticamente anche l'estensione nativa C (`setup.py build_ext --inplace`) prima di creare l'exe.
-Se il compilatore C/C++ non è presente, continua con fallback Python.
-Per rendere obbligatoria la compilazione nativa:
+Note: the build script also tries to compile the native C extension (`setup.py build_ext --inplace`) before packaging.
+If no C/C++ compiler is available, it falls back to pure Python.
+To require native compilation:
 
 ```bash
 python scripts/build_windows.py --cpu-profile avx2 --require-native
@@ -96,15 +100,15 @@ python scripts/build_windows.py --cpu-profile avx2 --require-native
 
 ### Build installer Windows (.exe setup)
 
-Prerequisito: installare Inno Setup 6 (ISCC.exe).
+Prerequisite: install Inno Setup 6 (`ISCC.exe`).
 
-Comando completo (build app + installer):
+Full command (build app + installer):
 
 ```bash
 python scripts/build_windows_installer.py
 ```
 
-Se `dist/AiringDeck.exe` esiste gia:
+If `dist/AiringDeck.exe` already exists:
 
 ```bash
 python scripts/build_windows_installer.py --skip-build-exe
@@ -113,16 +117,36 @@ python scripts/build_windows_installer.py --skip-build-exe
 Output:
 - `dist/AiringDeck-Setup-<version>.exe`
 
-Caratteristiche installer:
-- selezione lingua installer (EN/IT, default EN),
-- pagina dedicata alla lingua applicazione (EN/IT, default EN),
-- salvataggio lingua app in `HKCU\Software\AiringDeck\AiringDeck\app_language`.
+Installer behavior:
+- installer language selection (EN/IT, default EN),
+- dedicated app-language page (EN/IT, default EN),
+- app language saved to `HKCU\Software\AiringDeck\AiringDeck\app_language`.
+
+### Automated Release Post on X
+
+Release posting is automated with GitHub Actions:
+- workflow: `.github/workflows/x_release.yml`
+- script: `scripts/post_to_x.py`
+- source notes: `CHANGELOG.md` (section matching the released tag)
+
+To test locally without posting:
+
+```bash
+python scripts/post_to_x.py --tag v3.3.0 --dry-run
+```
+
+GitHub repository secrets required for real posting:
+- `X_POST_ENABLED=true`
+- `X_API_KEY`
+- `X_API_SECRET`
+- `X_ACCESS_TOKEN`
+- `X_ACCESS_TOKEN_SECRET`
 
 ## ⚡ Native Optimization
 
-- Il filtro testuale della lista anime usa un modulo C (`src/core/_airingdeck_native.c`) per ridurre overhead nei loop Python.
-- Se il modulo nativo non è disponibile, l'app usa fallback automatico in puro Python (`src/core/native_accel.py`).
-- L'integrazione è trasparente: nessun cambiamento lato QML/UI.
+- Text filtering on anime entries uses a C module (`src/core/_airingdeck_native.c`) to reduce Python-loop overhead.
+- If the native module is unavailable, the app automatically falls back to pure Python (`src/core/native_accel.py`).
+- Integration is transparent: no QML/UI behavior changes.
 
 ## 📁 Project Structure
 
@@ -143,7 +167,6 @@ airingdeck/
 │           └── components/
 ├── resources/
 │   ├── icons/
-│   ├── images/
 │   └── fonts/
 ├── scripts/
 │   └── build_windows.py        # Build script
