@@ -6,7 +6,7 @@ import QtQuick.Effects
 Item {
     id: root
     width: 200
-    height: 320
+    height: 340
     property bool isEnglishUi: appController.appLanguage === "en"
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -57,7 +57,7 @@ Item {
             // Cover Image
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 200
+                Layout.preferredHeight: 190
                 color: "#111827"
                 clip: true
                 
@@ -144,29 +144,38 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.margins: 12
-                spacing: 4
+                Layout.leftMargin: 12
+                Layout.rightMargin: 12
+                Layout.topMargin: 10
+                Layout.bottomMargin: 10
+                spacing: 3
                 
                 Text {
                     id: titleText
                     Layout.fillWidth: true
+                    Layout.minimumHeight: 52
+                    Layout.preferredHeight: 52
+                    Layout.maximumHeight: 52
                     text: displayTitle
                     color: "white"
                     font.pixelSize: 13 
                     font.bold: true
                     wrapMode: Text.WordWrap
-                    maximumLineCount: 4
-                    elide: Text.ElideNone
+                    verticalAlignment: Text.AlignTop
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
                 }
-                
+
                 Text {
                     Layout.fillWidth: true
-                    text: animeData.nextAiringEpisode ? 
+                    text: animeData.nextAiringEpisode ?
                           ((root.isEnglishUi ? "Next: Ep " : "Prossimo: Ep ") + animeData.nextAiringEpisode.episode + " • " + airingTime) :
                           (root.isEnglishUi ? "Finished or TBA" : "Terminato o TBA")
                     color: animeData.nextAiringEpisode ? "#34d399" : "#9ca3af"
                     font.pixelSize: 11
                     font.bold: !!animeData.nextAiringEpisode
+                    maximumLineCount: 1
+                    elide: Text.ElideRight
                 }
 
                 Text {
@@ -176,8 +185,6 @@ Item {
                     font.pixelSize: 11
                     font.bold: ratingDisplay !== "--"
                 }
-                 
-                Item { Layout.fillHeight: true }
             }
         }
         

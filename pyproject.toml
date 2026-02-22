@@ -7,6 +7,12 @@ name = "airingdeck"
 version = "3.3.0"
 description = "Desktop anime airing tracker with AniList integration"
 requires-python = ">=3.10"
+license = {text = "GPL-3.0-or-later"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: Microsoft :: Windows",
+]
 dependencies = [
     "PySide6>=6.7.0",
     "requests>=2.31.0",

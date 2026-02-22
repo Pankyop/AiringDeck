@@ -3,7 +3,7 @@
 Native desktop app to track anime airing schedules with AniList integration.
 
 ![Release](https://img.shields.io/github/v/release/Pankyop/AiringDeck?display_name=tag)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-GPLv3%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6)
 
 ## 🚀 Features
@@ -68,6 +68,22 @@ AIRINGDECK_UPDATE_REPOSITORY=Pankyop/AiringDeck
 AIRINGDECK_UPDATE_FEED_URL=https://api.github.com/repos/Pankyop/AiringDeck/releases/latest
 AIRINGDECK_UPDATE_TAGS_URL=https://api.github.com/repos/Pankyop/AiringDeck/tags
 AIRINGDECK_UPDATE_DOWNLOAD_URL=https://github.com/Pankyop/AiringDeck/releases
+```
+
+AniList client safety configuration (defaults shown):
+
+```bash
+# Disable local persistence of AniList payloads (default: strict mode ON)
+AIRINGDECK_ANILIST_CACHE_ENABLED=0
+
+# Conservative pacing to stay below temporary AniList limits
+AIRINGDECK_ANILIST_MIN_INTERVAL_SEC=2.1
+
+# Request timeout in seconds
+AIRINGDECK_ANILIST_TIMEOUT_SEC=10
+
+# Optional explicit API user-agent
+AIRINGDECK_USER_AGENT=AiringDeck/3.3.0 (+https://github.com/Pankyop/AiringDeck)
 ```
 
 ### Build .exe
@@ -142,6 +158,13 @@ GitHub repository secrets required for real posting:
 - `X_ACCESS_TOKEN`
 - `X_ACCESS_TOKEN_SECRET`
 
+## AniList API Compliance
+
+- The app uses AniList OAuth and GraphQL APIs under AniList terms.
+- Rate-limit handling and conservative request pacing are enabled in code.
+- Local AniList cache is disabled by default (`AIRINGDECK_ANILIST_CACHE_ENABLED=0`).
+- If you plan public/commercial distribution, request written confirmation from AniList for your use case.
+
 ## ⚡ Native Optimization
 
 - Text filtering on anime entries uses a C module (`src/core/_airingdeck_native.c`) to reduce Python-loop overhead.
@@ -183,4 +206,9 @@ airingdeck/
 
 ## 📝 License
 
-MIT
+This project is licensed under the **GNU General Public License v3.0 or later**
+(`GPL-3.0-or-later`).
+
+See `LICENSE` for the full text.
+
+Third-party license notes are documented in `THIRD_PARTY_LICENSES.md`.

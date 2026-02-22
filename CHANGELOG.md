@@ -7,7 +7,9 @@ This project follows Keep a Changelog and Semantic Versioning.
 ## [Unreleased]
 
 ### Changed
-- 
+- Relicensed the project from MIT references to `GPL-3.0-or-later`.
+- Added official `LICENSE` (GNU GPL v3.0 text) and `THIRD_PARTY_LICENSES.md`.
+- Added AniList compliance hardening defaults (conservative pacing, stricter cache policy).
 
 ### Fixed
 - 

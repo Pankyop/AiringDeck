@@ -1,5 +1,6 @@
-from datetime import datetime
 import logging
+import os
+from datetime import datetime
 from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings, QTimer, QUrl
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
@@ -61,6 +62,7 @@ class AppController(QObject):
         self._notification_lead_minutes = 15
         self._notified_episode_times = {}
         self._last_notification_media_id = None
+        self._anilist_cache_enabled = False
         self._tray_icon = None
         self._anime_by_id = {}
         self._sync_in_progress = False
@@ -106,6 +108,10 @@ class AppController(QObject):
         if self._notification_lead_minutes not in {5, 15, 30, 60}:
             self._notification_lead_minutes = 15
         self._dismissed_update_version = self._settings.value("dismissed_update_version", "", type=str)
+        self._anilist_cache_enabled = self._env_bool("AIRINGDECK_ANILIST_CACHE_ENABLED", False)
+        if not self._anilist_cache_enabled:
+            self._clear_offline_cache()
+            logger.info("AniList offline cache disabled (AIRINGDECK_ANILIST_CACHE_ENABLED=0)")
         
         # Calendar State
         self._daily_counts = [0] * 7
@@ -148,7 +154,7 @@ class AppController(QObject):
             logger.info("Found saved token, validating...")
             self._anilist_service.set_token(saved_token)
             
-            # Load offline cache first for instant UI
+            # Optional local cache disabled by default for stricter API-compliance profile.
             self._load_offline_cache()
             
             # Then fetch fresh data (Non-blocking)
@@ -158,6 +164,8 @@ class AppController(QObject):
 
     def _load_offline_cache(self):
         """Load cached data from past sessions"""
+        if not self._anilist_cache_enabled:
+            return
         import json
         
         # Load User Info
@@ -182,9 +190,22 @@ class AppController(QObject):
 
     def _save_offline_cache(self):
         """Save current state to persistent storage"""
+        if not self._anilist_cache_enabled:
+            return
         import json
         self._settings.setValue("cached_user_info", json.dumps(self._user_info))
         self._settings.setValue("cached_anime_list", json.dumps(self._full_anime_list))
+
+    def _clear_offline_cache(self):
+        self._settings.remove("cached_user_info")
+        self._settings.remove("cached_anime_list")
+
+    @staticmethod
+    def _env_bool(name: str, default: bool) -> bool:
+        raw = os.getenv(name)
+        if raw is None:
+            return default
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
 
     def _set_loading(self, loading: bool, message: str = ""):
         loading_changed = self._is_loading != loading
@@ -612,6 +633,7 @@ class AppController(QObject):
         self._daily_counts = [0] * 7
         self._weekly_schedule_cache = [[] for _ in range(7)]
         self._full_airing_entries = []
+        self._clear_offline_cache()
         # Force a UI refresh even when filter state is unchanged.
         self._data_revision += 1
         self._ui_model_key = None
