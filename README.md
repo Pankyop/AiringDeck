@@ -14,12 +14,6 @@ Desktop app nativa per tracciare le uscite anime con integrazione AniList.
 
 ## 🖼️ UI Screenshots
 
-### Calendar View
-![AiringDeck Calendar View](docs/screenshots/ui_calendar_view.png)
-
-### Details Panel
-![AiringDeck Details Panel](docs/screenshots/ui_details_panel.png)
-
 ## 🛠️ Tech Stack
 
 - **UI Framework**: Qt 6.7 (PySide6)
