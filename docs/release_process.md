@@ -38,7 +38,7 @@ Esempio commit:
 
 ```bash
 git add src/version.py pyproject.toml setup.py CHANGELOG.md
-git commit -m "chore(release): 3.3.0-beta.1"
+git commit -m "chore(release): 3.3.0"
 ```
 
 ## 5) Creazione tag
@@ -46,14 +46,14 @@ git commit -m "chore(release): 3.3.0-beta.1"
 Usare sempre tag annotati:
 
 ```bash
-git tag -a v3.3.0-beta.1 -m "AiringDeck 3.3.0-beta.1"
+git tag -a v3.3.0 -m "AiringDeck 3.3.0"
 ```
 
 Pubblicazione:
 
 ```bash
 git push origin master
-git push origin v3.3.0-beta.1
+git push origin v3.3.0
 ```
 
 ## 6) Regole incremento versione
