@@ -833,7 +833,15 @@ FocusScope {
                                 font.pixelSize: 14
                                 font.bold: true
                             }
-                        
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: mainContent.tr("Voto: ", "Score: ") + (appController.selectedAnime.rating_display || "--")
+                                color: "#f59e0b"
+                                font.pixelSize: 13
+                                font.bold: true
+                            }
+                         
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 60
