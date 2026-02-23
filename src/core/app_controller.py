@@ -40,6 +40,9 @@ class AppController(QObject):
     notificationLeadMinutesChanged = Signal()
     updateAvailableChanged = Signal()
     updateInfoChanged = Signal()
+    showPrivacyNoticeChanged = Signal()
+    updateChecksEnabledChanged = Signal()
+    diagnosticsEnabledChanged = Signal()
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -76,6 +79,11 @@ class AppController(QObject):
         self._update_notes = ""
         self._update_download_url = ""
         self._update_published_at = ""
+        self._privacy_notice_seen = False
+        self._show_privacy_notice = True
+        self._update_checks_enabled = True
+        self._diagnostics_enabled = False
+        self._network_bootstrap_completed = False
         
         # High-performance Models
         self._all_anime_model = AnimeModel(self)
@@ -108,6 +116,10 @@ class AppController(QObject):
         if self._notification_lead_minutes not in {5, 15, 30, 60}:
             self._notification_lead_minutes = 15
         self._dismissed_update_version = self._settings.value("dismissed_update_version", "", type=str)
+        self._update_checks_enabled = self._settings.value("update_checks_enabled", True, type=bool)
+        self._diagnostics_enabled = self._settings.value("diagnostics_enabled", False, type=bool)
+        self._privacy_notice_seen = self._settings.value("privacy_notice_seen", False, type=bool)
+        self._show_privacy_notice = not self._privacy_notice_seen
         self._anilist_cache_enabled = self._env_bool("AIRINGDECK_ANILIST_CACHE_ENABLED", False)
         if not self._anilist_cache_enabled:
             self._clear_offline_cache()
@@ -146,17 +158,31 @@ class AppController(QObject):
     def initialize(self):
         """Heavy initialization triggered after UI is visible"""
         logger.info("Starting lazy initialization...")
-        self.checkForUpdates()
-        
+        if self._show_privacy_notice:
+            # Keep startup network-idle until user confirms privacy/network preferences.
+            self._set_loading(False, self._msg_privacy_review_required())
+            return
+        self._continue_network_bootstrap()
+
+    def _continue_network_bootstrap(self):
+        if self._network_bootstrap_completed:
+            return
+        self._network_bootstrap_completed = True
+
+        if self._update_checks_enabled:
+            self.checkForUpdates()
+        else:
+            logger.info("Update checks disabled by user preference")
+
         # Check initial state
         saved_token = self._auth_service.get_saved_token()
         if saved_token:
             logger.info("Found saved token, validating...")
             self._anilist_service.set_token(saved_token)
-            
+
             # Optional local cache disabled by default for stricter API-compliance profile.
             self._load_offline_cache()
-            
+
             # Then fetch fresh data (Non-blocking)
             self._fetch_user_info()
         else:
@@ -197,8 +223,14 @@ class AppController(QObject):
         self._settings.setValue("cached_anime_list", json.dumps(self._full_anime_list))
 
     def _clear_offline_cache(self):
-        self._settings.remove("cached_user_info")
-        self._settings.remove("cached_anime_list")
+        remove = getattr(self._settings, "remove", None)
+        if callable(remove):
+            remove("cached_user_info")
+            remove("cached_anime_list")
+            return
+        # Compatibility fallback for lightweight test doubles that only implement setValue.
+        self._settings.setValue("cached_user_info", None)
+        self._settings.setValue("cached_anime_list", None)
 
     @staticmethod
     def _env_bool(name: str, default: bool) -> bool:
@@ -218,6 +250,12 @@ class AppController(QObject):
             self.isLoadingChanged.emit()
         if message_changed:
             self.statusMessageChanged.emit()
+
+    def _set_status_message(self, message: str):
+        if self._status_message == message:
+            return
+        self._status_message = message
+        self.statusMessageChanged.emit()
 
     def _on_auth_completed(self, token: str):
         """Handle successful authentication"""
@@ -529,6 +567,40 @@ class AppController(QObject):
     def appVersion(self):
         return APP_VERSION
 
+    @Property(bool, constant=True)
+    def noTrackerMode(self):
+        return True
+
+    @Property(bool, notify=showPrivacyNoticeChanged)
+    def showPrivacyNotice(self):
+        return self._show_privacy_notice
+
+    @Property(bool, notify=updateChecksEnabledChanged)
+    def updateChecksEnabled(self):
+        return self._update_checks_enabled
+
+    @updateChecksEnabled.setter
+    def updateChecksEnabled(self, value):
+        value = bool(value)
+        if self._update_checks_enabled == value:
+            return
+        self._update_checks_enabled = value
+        self._settings.setValue("update_checks_enabled", value)
+        self.updateChecksEnabledChanged.emit()
+
+    @Property(bool, notify=diagnosticsEnabledChanged)
+    def diagnosticsEnabled(self):
+        return self._diagnostics_enabled
+
+    @diagnosticsEnabled.setter
+    def diagnosticsEnabled(self, value):
+        value = bool(value)
+        if self._diagnostics_enabled == value:
+            return
+        self._diagnostics_enabled = value
+        self._settings.setValue("diagnostics_enabled", value)
+        self.diagnosticsEnabledChanged.emit()
+
     @Property(bool, notify=updateAvailableChanged)
     def updateAvailable(self):
         return self._update_available
@@ -555,9 +627,22 @@ class AppController(QObject):
 
     @Slot()
     def checkForUpdates(self):
+        if not self._update_checks_enabled:
+            logger.info("Skipping update check: disabled in privacy settings")
+            return
         if self._update_check_in_progress:
             return
         self._update_check_in_progress = True
+        if not self._is_loading:
+            self._set_status_message(self._msg_checking_updates())
+        if self._diagnostics_enabled:
+            feed_url = getattr(self._update_service, "feed_url", "")
+            tags_url = getattr(self._update_service, "tags_url", "")
+            logger.info(
+                "Update check requested (feed=%s, tags=%s)",
+                feed_url,
+                tags_url,
+            )
 
         worker = Worker(self._update_service.check_latest, APP_VERSION)
         worker.signals.result.connect(self._on_update_check_result)
@@ -591,6 +676,8 @@ class AppController(QObject):
 
     def _on_update_check_finished(self):
         self._update_check_in_progress = False
+        if not self._is_loading and self._status_message == self._msg_checking_updates():
+            self._set_status_message(self._msg_ready())
 
     @Slot()
     def openUpdatePage(self):
@@ -600,6 +687,16 @@ class AppController(QObject):
             logger.warning("Failed to open update URL: %s", self._update_download_url)
 
     @Slot()
+    def openSelectedAnimeOnAniList(self):
+        media = (self._selected_anime or {}).get("media") or {}
+        target_url = str(media.get("siteUrl") or "").strip()
+        if not target_url:
+            logger.info("Selected anime has no AniList URL")
+            return
+        if not QDesktopServices.openUrl(QUrl(target_url)):
+            logger.warning("Failed to open AniList URL: %s", target_url)
+
+    @Slot()
     def dismissUpdateNotice(self):
         if self._update_latest_version:
             self._dismissed_update_version = self._update_latest_version
@@ -607,6 +704,28 @@ class AppController(QObject):
         if self._update_available:
             self._update_available = False
             self.updateAvailableChanged.emit()
+
+    @Slot(bool, bool, bool)
+    def applyPrivacyPreferences(self, notifications_enabled: bool, update_checks_enabled: bool, diagnostics_enabled: bool):
+        self.notificationsEnabled = notifications_enabled
+        self.updateChecksEnabled = update_checks_enabled
+        self.diagnosticsEnabled = diagnostics_enabled
+
+        self._privacy_notice_seen = True
+        self._settings.setValue("privacy_notice_seen", True)
+        if self._show_privacy_notice:
+            self._show_privacy_notice = False
+            self.showPrivacyNoticeChanged.emit()
+        self._set_loading(False, self._msg_privacy_saved())
+        self._continue_network_bootstrap()
+
+    @Slot()
+    def acceptPrivacyDefaults(self):
+        self.applyPrivacyPreferences(
+            self._notifications_enabled,
+            self._update_checks_enabled,
+            self._diagnostics_enabled,
+        )
     
     # Slots (callable from QML)
     @Slot()
@@ -1206,3 +1325,21 @@ class AppController(QObject):
 
     def _msg_synced_count(self, count: int) -> str:
         return self._tr(f"Sincronizzati {count} anime", f"Synced {count} anime")
+
+    def _msg_privacy_review_required(self) -> str:
+        return self._tr(
+            "Rivedi le preferenze privacy per avviare i servizi di rete.",
+            "Review privacy preferences to enable network services.",
+        )
+
+    def _msg_privacy_saved(self) -> str:
+        return self._tr(
+            "Preferenze privacy salvate.",
+            "Privacy preferences saved.",
+        )
+
+    def _msg_checking_updates(self) -> str:
+        return self._tr(
+            "Controllo aggiornamenti...",
+            "Checking updates...",
+        )

@@ -35,6 +35,14 @@ class UpdateService:
         if not self._tags_url and self._repo:
             self._tags_url = f"https://api.github.com/repos/{self._repo}/tags"
 
+    @property
+    def feed_url(self) -> str:
+        return self._feed_url
+
+    @property
+    def tags_url(self) -> str:
+        return self._tags_url
+
     def _request_json(self, url: str) -> Any | None:
         if not url:
             return None
@@ -97,7 +105,7 @@ class UpdateService:
 
     def _summarize_notes(self, body: str) -> str:
         if not body:
-            return "Nuova versione disponibile."
+            return "A new version is available."
         lines: list[str] = []
         for raw in body.splitlines():
             line = raw.strip()
@@ -114,7 +122,7 @@ class UpdateService:
             lines.append(f"• {line}")
             if len(lines) >= 6:
                 break
-        return "\n".join(lines) if lines else "Nuova versione disponibile."
+        return "\n".join(lines) if lines else "A new version is available."
 
     def _from_release_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         raw_tag = str(payload.get("tag_name") or payload.get("name") or "").strip()
@@ -142,7 +150,7 @@ class UpdateService:
             return {
                 "latest_version": latest_version,
                 "title": f"v{latest_version}",
-                "notes": "Nuovo aggiornamento disponibile. Consulta le note su GitHub.",
+                "notes": "A new update is available. Check release notes on GitHub.",
                 "download_url": self._download_url
                 or f"https://github.com/{self._repo}/releases",
                 "published_at": "",

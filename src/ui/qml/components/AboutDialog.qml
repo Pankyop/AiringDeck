@@ -54,6 +54,23 @@ Dialog {
                 font.bold: true
                 Layout.alignment: Qt.AlignHCenter
             }
+
+            Rectangle {
+                color: "#0f766e"
+                radius: 8
+                Layout.alignment: Qt.AlignHCenter
+                implicitWidth: noTrackerAboutLabel.implicitWidth + 14
+                implicitHeight: 24
+
+                Text {
+                    id: noTrackerAboutLabel
+                    anchors.centerIn: parent
+                    text: appController.appLanguage === "en" ? "NO-TRACKER MODE" : "MODALITA NO-TRACKER"
+                    color: "#ccfbf1"
+                    font.pixelSize: 11
+                    font.bold: true
+                }
+            }
         }
         
         Rectangle {
@@ -66,8 +83,8 @@ Dialog {
         Text {
             Layout.fillWidth: true
             text: appController.appLanguage === "en"
-                  ? "A modern and high-performance desktop tracker for your anime releases, integrated with AniList."
-                  : "Un tracker desktop moderno e performante per le tue uscite anime, integrato con AniList."
+                  ? "A local, high-performance desktop viewer for anime airing schedules, integrated with AniList."
+                  : "Un viewer desktop locale e performante per le uscite anime, integrato con AniList."
             color: "#9ca3af"
             font.pixelSize: 14
             horizontalAlignment: Text.AlignHCenter

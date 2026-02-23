@@ -841,6 +841,32 @@ FocusScope {
                                 font.pixelSize: 13
                                 font.bold: true
                             }
+
+                            Button {
+                                Layout.alignment: Qt.AlignLeft
+                                Layout.preferredHeight: 38
+                                text: mainContent.tr("Open on AniList", "Open on AniList")
+                                visible: !!(appController.selectedAnime.media && appController.selectedAnime.media.siteUrl)
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Accessible.name: mainContent.tr("Apri su AniList", "Open on AniList")
+                                Accessible.description: mainContent.tr(
+                                                            "Apre la pagina AniList dell'anime selezionato",
+                                                            "Opens the AniList page for the selected anime"
+                                                        )
+                                onClicked: appController.openSelectedAnimeOnAniList()
+                                background: Rectangle {
+                                    color: parent.hovered ? "#1f7ae0" : "#2563eb"
+                                    radius: 8
+                                }
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
                          
                         Rectangle {
                             Layout.fillWidth: true
@@ -954,6 +980,219 @@ FocusScope {
                 font.pixelSize: 11
             }
         }
+        }
+    }
+
+    Item {
+        id: privacyModalOverlay
+        anchors.fill: parent
+        z: 12500
+        visible: appController.showPrivacyNotice
+        focus: visible
+        onVisibleChanged: {
+            if (visible) {
+                continuePrivacyButton.forceActiveFocus()
+                privacyNotificationsSwitch.checked = appController.notificationsEnabled
+                privacyUpdateChecksSwitch.checked = appController.updateChecksEnabled
+                privacyDiagnosticsSwitch.checked = appController.diagnosticsEnabled
+            }
+        }
+
+        ShaderEffectSource {
+            id: privacyOverlaySource
+            anchors.fill: uiScene
+            sourceItem: uiScene
+            live: true
+            hideSource: privacyModalOverlay.visible
+            visible: privacyModalOverlay.visible
+            smooth: true
+        }
+
+        MultiEffect {
+            anchors.fill: parent
+            source: privacyOverlaySource
+            blurEnabled: true
+            blurMax: 54
+            blur: 0.82
+            saturation: 0.92
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: "#7f020617"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            cursorShape: Qt.ArrowCursor
+        }
+
+        Rectangle {
+            id: privacyDialog
+            width: Math.min(parent.width - 56, 760)
+            height: Math.min(parent.height - 56, privacyDialogContent.implicitHeight + 36)
+            anchors.centerIn: parent
+            radius: 14
+            color: "#0f172a"
+            border.color: "#14b8a6"
+            border.width: 1
+            clip: true
+
+            ScrollView {
+                anchors.fill: parent
+                anchors.margins: 18
+                clip: true
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+                ColumnLayout {
+                    id: privacyDialogContent
+                    width: Math.max(parent.availableWidth - 2, 0)
+                    spacing: 12
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: mainContent.tr("Data & Privacy setup", "Data & Privacy setup")
+                        color: "#ccfbf1"
+                        font.pixelSize: 22
+                        font.bold: true
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: mainContent.tr(
+                                  "AiringDeck opera in modalita no-tracker: i dati restano locali e non esiste un cloud AiringDeck. Scegli ora come gestire funzioni opzionali.",
+                                  "AiringDeck runs in no-tracker mode: data stays local and there is no AiringDeck cloud backend. Choose how optional features should work."
+                              )
+                        color: "#e2e8f0"
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: privacyOptionsColumn.implicitHeight + 28
+                        color: "#111827"
+                        radius: 10
+                        border.color: "#1f2937"
+                        border.width: 1
+
+                        ColumnLayout {
+                            id: privacyOptionsColumn
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 10
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: mainContent.tr("Notifiche episodi", "Episode notifications")
+                                    color: "#f8fafc"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                }
+                                Switch {
+                                    id: privacyNotificationsSwitch
+                                    checked: appController.notificationsEnabled
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: mainContent.tr("Controllo aggiornamenti GitHub", "GitHub update checks")
+                                    color: "#f8fafc"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                }
+                                Switch {
+                                    id: privacyUpdateChecksSwitch
+                                    checked: appController.updateChecksEnabled
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: mainContent.tr("Diagnostica locale", "Local diagnostics")
+                                    color: "#f8fafc"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                }
+                                Switch {
+                                    id: privacyDiagnosticsSwitch
+                                    checked: appController.diagnosticsEnabled
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: mainContent.tr(
+                                  "Puoi modificare queste opzioni in qualsiasi momento da Impostazioni.",
+                                  "You can change these options anytime from Settings."
+                              )
+                        color: "#93c5fd"
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Button {
+                            text: mainContent.tr("Usa valori correnti", "Use current values")
+                            onClicked: appController.acceptPrivacyDefaults()
+                            background: Rectangle {
+                                color: parent.hovered ? "#334155" : "#1f2937"
+                                radius: 8
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: "#e2e8f0"
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Button {
+                            id: continuePrivacyButton
+                            text: mainContent.tr("Salva e continua", "Save and continue")
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: mainContent.tr("Salva preferenze privacy", "Save privacy preferences")
+                            Accessible.description: mainContent.tr(
+                                                        "Salva le preferenze e avvia i servizi opzionali",
+                                                        "Save preferences and start optional services"
+                                                    )
+                            onClicked: appController.applyPrivacyPreferences(
+                                           privacyNotificationsSwitch.checked,
+                                           privacyUpdateChecksSwitch.checked,
+                                           privacyDiagnosticsSwitch.checked
+                                       )
+                            background: Rectangle {
+                                color: continuePrivacyButton.hovered ? "#0d9488" : "#0f766e"
+                                radius: 8
+                            }
+                            contentItem: Text {
+                                text: continuePrivacyButton.text
+                                color: "white"
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
