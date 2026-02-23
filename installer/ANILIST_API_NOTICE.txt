@@ -1,0 +1,21 @@
+AiringDeck AniList API Notice
+=============================
+
+AiringDeck is an unofficial desktop client that connects to AniList through
+the official OAuth + GraphQL APIs.
+
+What AiringDeck does:
+- asks you to sign in with your own AniList account (OAuth),
+- reads your anime list and airing-related metadata needed for this app,
+- stores auth tokens using the OS secure storage (keyring),
+- supports conservative request pacing and timeout handling.
+
+What AiringDeck does not do by default:
+- it does not collect your AniList password,
+- it does not run an AiringDeck cloud tracker backend,
+- it does not enable hidden telemetry by default,
+- it does not keep long-term AniList payload cache by default.
+
+AniList is a third-party service and can change its API/ToS over time.
+By using AiringDeck with AniList, you acknowledge that AniList terms apply.
+

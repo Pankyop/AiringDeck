@@ -34,6 +34,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ShowLanguageDialog=yes
 LanguageDetectionMethod=none
 UsePreviousLanguage=no
+LicenseFile=..\LICENSE
+InfoBeforeFile=ANILIST_API_NOTICE.txt
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -45,12 +47,14 @@ english.AppLanguageDescription=Choose the default language for AiringDeck.
 english.AppLanguageSub=You can change this later in Settings.
 english.AppLanguageEnglish=English (Default)
 english.AppLanguageItalian=Italian
+english.LicenseRequiredExit=You must accept the license to install AiringDeck. Setup will now close.
 
 italian.AppLanguageTitle=Application language
 italian.AppLanguageDescription=Choose the default language for AiringDeck.
 italian.AppLanguageSub=You can change this later in Settings.
 italian.AppLanguageEnglish=English (Default)
 italian.AppLanguageItalian=Italian
+italian.LicenseRequiredExit=You must accept the license to install AiringDeck. Setup will now close.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
@@ -72,6 +76,15 @@ Filename: "{app}\AiringDeck.exe"; Description: "{cm:LaunchProgram,AiringDeck}"; 
 [Code]
 var
   AppLanguagePage: TInputOptionWizardPage;
+
+procedure LicenseNotAcceptedClick(Sender: TObject);
+begin
+  if WizardForm.LicenseNotAcceptedRadio.Checked then
+  begin
+    MsgBox(ExpandConstant('{cm:LicenseRequiredExit}'), mbInformation, MB_OK);
+    WizardForm.Close;
+  end;
+end;
 
 function GetCurrentAppLanguageIndex: Integer;
 var
@@ -101,6 +114,9 @@ begin
   AppLanguagePage.Add(ExpandConstant('{cm:AppLanguageEnglish}'));
   AppLanguagePage.Add(ExpandConstant('{cm:AppLanguageItalian}'));
   AppLanguagePage.SelectedValueIndex := GetCurrentAppLanguageIndex();
+
+  if WizardForm.LicenseNotAcceptedRadio <> nil then
+    WizardForm.LicenseNotAcceptedRadio.OnClick := @LicenseNotAcceptedClick;
 end;
 
 function GetAppLanguage(Param: string): string;
