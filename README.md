@@ -15,6 +15,7 @@ Native desktop app to track anime airing schedules with AniList integration.
 - ✅ Modern QML UI
 - ✅ Low memory footprint (~50MB)
 - ✅ Windows native .exe
+- ✅ No-Tracker mode (privacy-first defaults)
 
 ## 🛠️ Tech Stack
 
@@ -138,32 +139,27 @@ Installer behavior:
 - dedicated app-language page (EN/IT, default EN),
 - app language saved to `HKCU\Software\AiringDeck\AiringDeck\app_language`.
 
-### Automated Release Post on X
-
-Release posting is automated with GitHub Actions:
-- workflow: `.github/workflows/x_release.yml`
-- script: `scripts/post_to_x.py`
-- source notes: `CHANGELOG.md` (section matching the released tag)
-
-To test locally without posting:
-
-```bash
-python scripts/post_to_x.py --tag v3.3.0 --dry-run
-```
-
-GitHub repository secrets required for real posting:
-- `X_POST_ENABLED=true`
-- `X_API_KEY`
-- `X_API_SECRET`
-- `X_ACCESS_TOKEN`
-- `X_ACCESS_TOKEN_SECRET`
-
 ## AniList API Compliance
 
-- The app uses AniList OAuth and GraphQL APIs under AniList terms.
+- AiringDeck is an unofficial client and uses AniList OAuth + GraphQL APIs under AniList terms.
+- The app uses user-granted OAuth tokens only (no AniList credential scraping).
+- The app reads only data needed for schedule/list features (no bulk dataset extraction).
 - Rate-limit handling and conservative request pacing are enabled in code.
-- Local AniList cache is disabled by default (`AIRINGDECK_ANILIST_CACHE_ENABLED=0`).
+- Local AniList payload cache is disabled by default (`AIRINGDECK_ANILIST_CACHE_ENABLED=0`).
 - If you plan public/commercial distribution, request written confirmation from AniList for your use case.
+
+## No-Tracker Mode
+
+AiringDeck is designed as a local desktop viewer, not a cloud tracking platform.
+
+- no AiringDeck-owned backend storing user anime history,
+- no hidden telemetry by default,
+- no long-term AniList payload persistence by default,
+- first-run privacy dialog to configure notifications, update checks, and diagnostics.
+
+Reference docs:
+- `docs/product_scope_no_tracker.md`
+- `docs/privacy_data_policy.md`
 
 ## ⚡ Native Optimization
 

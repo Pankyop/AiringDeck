@@ -32,6 +32,12 @@ SemVer and prerelease identifiers (`-beta`, `-rc`).
 `python scripts/build_windows_installer.py --skip-build-exe`
   (or omit `--skip-build-exe` to rebuild the app first).
 
+6. Run API/compliance review:
+- verify `docs/release_compliance_checklist.md`,
+- execute `docs/manual_no_tracker_checklist.md`,
+- verify AniList usage still aligned with current terms,
+- verify No-Tracker defaults and first-run privacy dialog behavior.
+
 ## 4) Release commit
 
 Example:
@@ -73,28 +79,12 @@ git push origin v3.3.0
 - Build smoke successful.
 - Windows installer generated (`dist/AiringDeck-Setup-<version>.exe`).
 - No open P0 blockers in roadmap.
+- Compliance checklist completed for the target tag.
 
-## 8) Automated X release post
+## 8) Release notes template
 
-The repository includes `.github/workflows/x_release.yml`, which triggers on:
-- GitHub release publication (`release.published`)
-- manual dispatch (`workflow_dispatch`)
-
-It runs `scripts/post_to_x.py` and publishes a release thread from
-`CHANGELOG.md`.
-
-Required repository secrets:
-- `X_POST_ENABLED` = `true` (if missing/false, script runs in dry-run)
-- `X_API_KEY`
-- `X_API_SECRET`
-- `X_ACCESS_TOKEN`
-- `X_ACCESS_TOKEN_SECRET`
-
-Optional:
-- `X_BEARER_TOKEN` (used only if OAuth1 credentials are not provided)
-
-Manual verification (no posting):
-
-```bash
-python scripts/post_to_x.py --tag v3.3.0 --dry-run
-```
+Use `docs/release_notes_template.md` for each GitHub release.
+It includes a mandatory compliance section:
+- data/privacy impact,
+- network/API impact,
+- AniList usage statement.

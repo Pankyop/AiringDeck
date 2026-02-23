@@ -11,6 +11,7 @@ Last updated: February 22, 2026
 - Total coverage: `84%`.
 - Security scan (`bandit`) and dependency policy sync: OK.
 - Runtime smoke (source + dist): OK.
+- No-Tracker baseline (phases 0-4): implemented locally and validated.
 
 Conclusion: stable release completed and publishable.
 
@@ -58,3 +59,92 @@ Conclusion: stable release completed and publishable.
 - Changelog updated.
 - Release tag created.
 - `dist` build and installer generated without errors.
+
+## 6) No-Tracker implementation status (compliance-first alternative)
+
+Goal: keep AiringDeck useful as an airing viewer while removing behavior that can be interpreted as a third-party tracker product.
+
+### Phase 0 - Product boundary and policy (P0) ✅
+
+- Define and freeze "no-tracker" scope in docs:
+  - Read-only schedule browsing.
+  - Optional local reminders only.
+  - No remote user behavior profiling.
+  - No server-side collection owned by AiringDeck.
+- Add explicit non-goals:
+  - No cross-account tracking dashboard.
+  - No central AiringDeck cloud sync for user history.
+  - No hidden telemetry by default.
+- Deliverables:
+  - `docs/product_scope_no_tracker.md`
+  - `docs/privacy_data_policy.md`
+  - README section "No-Tracker Mode"
+
+Acceptance criteria:
+- Feature list and non-goals are documented and consistent across README/docs/app copy.
+
+### Phase 1 - Technical hardening for no-tracker behavior (P0) ✅
+
+- Enforce strict local-data minimization defaults:
+  - AniList cache disabled by default (already present, keep as hard default).
+  - No long-term storage of full API payloads.
+  - Optional short-lived in-memory cache only.
+- Ensure all update/network calls are explicit and transparent:
+  - Clear user-visible labels for each external call.
+  - Conservative rate limiting and retry with backoff.
+- Remove/disable any remaining "collector-like" paths:
+  - No background bulk sync loops without user action.
+  - No analytics identifiers persisted across sessions.
+
+Acceptance criteria:
+- Cold restart does not retain full AniList payloads.
+- No hidden polling loop runs when app is idle.
+
+### Phase 2 - UX changes to make compliance explicit (P1) ✅
+
+- Add a first-run "Data & Privacy" dialog:
+  - Explain exactly what data is requested and why.
+  - Separate toggles: reminders, update checks, diagnostics.
+- Add "No-Tracker Mode" badge in Settings/About.
+- Add "Open on AniList" as primary action for deep interactions.
+- Keep user-facing messaging explicit:
+  - "AiringDeck is a local viewer, not a cloud tracker."
+
+Acceptance criteria:
+- Users can review and disable optional network-adjacent features without editing env vars.
+
+### Phase 3 - Regression and compliance validation (P1) ✅
+
+- Add automated tests:
+  - `no_tracker_defaults`: verify strict defaults at startup.
+  - `no_payload_persistence`: verify no full payload persistence in settings/cache.
+  - `network_transparency`: verify explicit user-triggered refresh path.
+  - `rate_limit_backoff`: verify bounded retry behavior.
+- Add manual QA checklist:
+  - Offline start, reconnect, timeout, intermittent failure, recovery.
+  - Privacy settings persistence and opt-out behavior.
+
+Acceptance criteria:
+- CI includes no-tracker test set and passes.
+- Manual checklist completed for release candidates.
+
+### Phase 4 - Release and governance (P1) ✅
+
+- Publish compliance note with each release:
+  - Data flow summary.
+  - Third-party API use statement.
+  - Changes impacting privacy/network behavior.
+- Maintain a lightweight "API compliance review" step before tagging releases.
+- Keep AniList usage documentation aligned with their current terms.
+
+Acceptance criteria:
+- Release template includes compliance section by default.
+- No release is cut without passing compliance checklist.
+
+### Validation snapshot
+
+- New docs added: no-tracker scope + privacy/data policy + release compliance checklist.
+- Manual QA checklist added for no-tracker flows and network recovery.
+- App controller hardening added: first-run privacy gate, explicit update-check toggle, diagnostics toggle.
+- UI updates added: centered privacy dialog, no-tracker badges, "Open on AniList" primary action in details.
+- Automated regression tests added for no-tracker defaults and behavior.

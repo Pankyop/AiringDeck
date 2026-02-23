@@ -5,6 +5,14 @@ Last updated: 2026-02-22
 This checklist is a practical hardening layer for AiringDeck usage of AniList API.
 It is not legal advice.
 
+## AiringDeck API usage summary
+
+- AiringDeck is an unofficial desktop client for personal AniList account usage.
+- Authentication is done via AniList OAuth in the user's browser.
+- The app reads user-list/schedule data required to show airing episodes and progress.
+- AniList account passwords are never handled by AiringDeck.
+- By default, no long-term AniList payload cache is stored locally.
+
 ## Technical safeguards implemented
 
 - OAuth user-token flow only (no credential scraping).
@@ -41,4 +49,3 @@ Could you confirm whether this usage is allowed for public distribution?
 If needed, I can share repository and release details.
 
 Thanks.
-
