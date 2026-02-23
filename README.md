@@ -2,7 +2,12 @@
 
 Native desktop app to track anime airing schedules with AniList integration.
 
-![Release](https://img.shields.io/github/v/release/Pankyop/AiringDeck?display_name=tag)
+<p align="center">
+  <img src="resources/icons/app.png" alt="AiringDeck Icon" width="192" height="192" />
+</p>
+
+![Release](https://img.shields.io/github/v/release/Pankyop/AiringDeck?display_name=tag&style=flat)
+![Downloads](https://img.shields.io/github/downloads/Pankyop/AiringDeck/total?style=flat)
 ![License](https://img.shields.io/badge/license-GPLv3%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6)
 
