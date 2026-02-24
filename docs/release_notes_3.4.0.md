@@ -4,31 +4,31 @@ Release date: 2026-02-24
 
 ## Highlights
 
-- Nuovo menu Impostazioni con layout orizzontale e struttura piu chiara.
-- Rimosso il sync in background periodico dalle impostazioni.
-- Nuovo pulsante `Controlla ora` per verifica aggiornamenti on-demand.
-- Nuovo updater in-app: `Aggiorna ora` scarica e avvia direttamente l'installer Windows.
+- New Settings menu with a horizontal layout and clearer section structure.
+- Removed periodic background sync configuration from Settings.
+- Added a manual `Check now` action for on-demand update checks.
+- New in-app updater flow: `Update now` downloads and launches the Windows installer directly.
 
 ## Fixes
 
-- Pulsante e testo di notifica test visibili solo in profilo dev/test.
-- Migliorata la coerenza di accessibilita e navigazione tastiera nel flusso update/settings.
+- Test-notification controls are now visible only in dev/test profile mode.
+- Improved keyboard navigation and accessibility consistency in update/settings flows.
 
 ## Performance
 
-- Nessun cambiamento regressivo atteso nel runtime; refresh UI settings senza impatti sul calendario.
+- No expected runtime regressions; Settings UI refresh does not impact calendar performance.
 
 ## Compliance (required)
 
 ### Data & Privacy impact
 
-- Nessuna nuova telemetria remota introdotta.
-- Download update attivato solo su azione esplicita dell'utente.
+- No new remote telemetry was introduced.
+- Update download is triggered only by explicit user action.
 
 ### Network/API impact
 
-- Update check resta su GitHub Releases/Tags.
-- In presenza di asset release Windows, l'app usa direttamente l'installer come payload update.
+- Update checks still use GitHub Releases/Tags.
+- When a Windows installer asset exists in the release, the app uses it directly as update payload.
 
 ### AniList usage statement
 
@@ -37,5 +37,5 @@ Release date: 2026-02-24
 
 ## Upgrade notes
 
-- Gli utenti da versioni precedenti possono aggiornare da avviso in-app.
-- Se una release non espone un installer Windows tra gli asset, l'update diretto non viene avviato.
+- Users on previous versions can update from the in-app update notice.
+- If a release does not include a Windows installer asset, direct in-app install cannot be started.
