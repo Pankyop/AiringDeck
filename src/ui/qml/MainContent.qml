@@ -95,8 +95,8 @@ FocusScope {
     function formattedUpdateNotes() {
         if (!appController.updateNotes || appController.updateNotes.length === 0) {
             return mainContent.tr(
-                "Nuova versione disponibile. Consulta la pagina release per i dettagli.",
-                "A new version is available. Open the release page for details."
+                "Nuova versione disponibile. Premi Aggiorna ora per installarla direttamente.",
+                "A new version is available. Press Update now to install it directly."
             )
         }
         return appController.updateNotes
@@ -1321,22 +1321,34 @@ FocusScope {
                     elide: Text.ElideRight
                 }
 
+                Text {
+                    Layout.fillWidth: true
+                    visible: appController.updateInstallMessage.length > 0
+                    text: appController.updateInstallMessage
+                    color: appController.updateInstallInProgress ? "#93c5fd" : "#facc15"
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
                 Item { Layout.fillWidth: true; Layout.preferredHeight: 2 }
 
                 Button {
                     id: updateNowButton
-                    text: mainContent.tr("Aggiorna ora", "Update now")
+                    text: appController.updateInstallInProgress
+                          ? mainContent.tr("Download in corso...", "Downloading...")
+                          : mainContent.tr("Aggiorna ora", "Update now")
                     Layout.alignment: Qt.AlignRight
+                    enabled: !appController.updateInstallInProgress
                     activeFocusOnTab: true
                     KeyNavigation.tab: closeUpdateDialogButton
                     KeyNavigation.backtab: closeUpdateDialogButton
                     Accessible.role: Accessible.Button
                     Accessible.name: mainContent.tr("Aggiorna ora", "Update now")
                     Accessible.description: mainContent.tr(
-                                                "Apre la pagina di download dell'aggiornamento",
-                                                "Opens the update download page"
+                                                "Scarica e avvia direttamente l'installer dell'aggiornamento",
+                                                "Downloads and directly starts the update installer"
                                             )
-                    onClicked: appController.openUpdatePage()
+                    onClicked: appController.startUpdateInstall()
                     background: Rectangle {
                         color: updateNowButton.hovered ? "#2563eb" : "#1d4ed8"
                         radius: 8

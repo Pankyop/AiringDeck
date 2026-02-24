@@ -1,10 +1,10 @@
 # RELEASE STATUS
 
-Last updated: February 22, 2026
+Last updated: February 24, 2026
 
 ## Current version
 
-- `3.3.0` (Stable)
+- `3.4.0` (Stable)
 
 Aligned files:
 - `src/version.py`
@@ -34,20 +34,20 @@ Aligned files:
 5. Build installer Windows:
 - Command: `python scripts/build_windows_installer.py --skip-build-exe`
 - Result: **PASS**
-- Output: `dist/AiringDeck-Setup-3.3.0.exe`
+- Output: `dist/AiringDeck-Setup-3.4.0.exe`
 
 ## Key changes included in this release
 
-- Quality and release process consolidation (CI + changelog + release process).
-- Complete removal of external rating-source feature, reverted to AniList-only scores.
-- Simplified score UI (no provider label).
-- Cleanup of model roles and code paths related to external rating providers.
+- Settings menu redesigned with horizontal layout.
+- Background periodic sync removed from settings.
+- Added on-demand update check (`Controlla ora`) in settings.
+- In-app updater flow now downloads and launches installer directly.
 
 ## Release-ready artifacts
 
 - `dist/AiringDeck.exe`
-- `dist/AiringDeck-Setup-3.3.0.exe`
+- `dist/AiringDeck-Setup-3.4.0.exe`
 
 ## Recommended next cycle
 
-- `3.3.1` patch (post-release hardening and increased test coverage on `app_controller.py` branches).
+- `3.4.1` patch (hardening in-app updater edge cases and installer lifecycle tests).

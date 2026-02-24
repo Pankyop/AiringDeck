@@ -6,9 +6,12 @@ Dialog {
     id: settingsDialog
     modal: true
     property bool isEnglishUi: appController.appLanguage === "en"
-    readonly property color panelColor: "#2b364a"
-    readonly property color panelBorderColor: "#3a4760"
-    readonly property color panelSubTextColor: "#9fb0c5"
+    readonly property color panelColor: "#283a55"
+    readonly property color panelBorderColor: "#425c7f"
+    readonly property color panelSubTextColor: "#a8bdd5"
+    readonly property color sectionLabelColor: "#7f9bbb"
+    readonly property color accentColor: "#3b82f6"
+    readonly property color accentSoftColor: "#60a5fa"
     
     property point lastMousePos: Qt.point(0, 0)
     function tr(itText, enText) {
@@ -24,25 +27,38 @@ Dialog {
     }
     Keys.onEscapePressed: settingsDialog.close()
     
-    width: 520
-    height: 730
+    width: 1180
+    height: 680
     
     standardButtons: Dialog.NoButton
     
     background: Rectangle {
-        color: "#182131"
-        border.color: "#2d3748"
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#0f1a2c" }
+            GradientStop { position: 1.0; color: "#1a2b44" }
+        }
+        border.color: "#355079"
         border.width: 1
-        radius: 20
+        radius: 22
         
-        // Subtle outer glow/shadow
-        layer.enabled: true
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: 21
+            color: "transparent"
+            border.color: "#253852"
+            border.width: 1
+            opacity: 0.8
+        }
     }
     
     header: Rectangle {
-        color: "#111827"
-        height: 70
-        radius: 20
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#0d1730" }
+            GradientStop { position: 1.0; color: "#12213e" }
+        }
+        height: 80
+        radius: 22
         
         MouseArea {
             anchors.fill: parent
@@ -68,7 +84,7 @@ Dialog {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 20
-            color: "#111827"
+            color: "#12213e"
         }
         
         RowLayout {
@@ -76,18 +92,30 @@ Dialog {
             anchors.leftMargin: 24
             anchors.rightMargin: 20
             
-            Text {
-                text: "⚙️ " + settingsDialog.tr("IMPOSTAZIONI", "SETTINGS")
-                color: "#ffffff"
-                font.pixelSize: 18
-                font.bold: true
-                font.letterSpacing: 2
+            ColumnLayout {
+                spacing: 2
+
+                Text {
+                    text: "⚙️ " + settingsDialog.tr("IMPOSTAZIONI", "SETTINGS")
+                    color: "#ffffff"
+                    font.pixelSize: 20
+                    font.bold: true
+                    font.letterSpacing: 2.4
+                }
+                Text {
+                    text: settingsDialog.tr("Controlli locali e privacy", "Local controls and privacy")
+                    color: "#9db0cb"
+                    font.pixelSize: 11
+                }
             }
 
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.leftMargin: 8
-                color: "#0f766e"
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#0891b2" }
+                    GradientStop { position: 1.0; color: "#0f766e" }
+                }
                 radius: 8
                 implicitWidth: noTrackerBadgeText.implicitWidth + 14
                 implicitHeight: 24
@@ -121,7 +149,9 @@ Dialog {
 
                 background: Rectangle {
                     radius: 18
-                    color: parent.hovered ? "#334155" : "#2d3748"
+                    color: parent.hovered ? "#334155" : "#26354d"
+                    border.color: parent.hovered ? settingsDialog.accentSoftColor : "#425a7a"
+                    border.width: 1
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
@@ -137,30 +167,46 @@ Dialog {
         }
     }
     
-    contentItem: ColumnLayout {
-        spacing: 18
-        anchors.margins: 20
-        
-        // Section: Interface
-        ColumnLayout {
+    contentItem: Rectangle {
+        color: "#11233d"
+        radius: 18
+        border.color: "#2f4f77"
+        border.width: 1
+        clip: true
+
+        GridLayout {
+            columns: 2
+            columnSpacing: 24
+            rowSpacing: 12
+            anchors.fill: parent
+            anchors.margins: 16
+            
+            // Section: Interface
+            ColumnLayout {
+            Layout.row: 0
+            Layout.column: 0
             Layout.fillWidth: true
-            spacing: 12
+            Layout.fillHeight: true
+            Layout.preferredWidth: 760
+            spacing: 0
             
             Text {
                 text: settingsDialog.tr("INTERFACCIA", "INTERFACE")
-                color: "#718096"
+                color: settingsDialog.sectionLabelColor
                 font.pixelSize: 11
                 font.bold: true
-                font.letterSpacing: 1.5
+                font.letterSpacing: 2.2
             }
+
+            Item { Layout.preferredHeight: 6 }
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 92
-                color: settingsDialog.panelColor
-                radius: 12
-                border.color: settingsDialog.panelBorderColor
-                border.width: 1
+                height: 86
+                color: "transparent"
+                radius: 0
+                border.color: "transparent"
+                border.width: 0
                 clip: true
 
                 RowLayout {
@@ -235,14 +281,21 @@ Dialog {
                     }
                 }
             }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: "#35516f"
+                opacity: 0.78
+            }
             
             Rectangle {
                 Layout.fillWidth: true
-                height: 86
-                color: settingsDialog.panelColor
-                radius: 12
-                border.color: settingsDialog.panelBorderColor
-                border.width: 1
+                height: 82
+                color: "transparent"
+                radius: 0
+                border.color: "transparent"
+                border.width: 0
                 clip: true
                 
                 RowLayout {
@@ -317,11 +370,18 @@ Dialog {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 110
-                color: settingsDialog.panelColor
-                radius: 12
-                border.color: settingsDialog.panelBorderColor
-                border.width: 1
+                Layout.preferredHeight: 1
+                color: "#35516f"
+                opacity: 0.78
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 106
+                color: "transparent"
+                radius: 0
+                border.color: "transparent"
+                border.width: 0
                 clip: true
 
                 RowLayout {
@@ -365,7 +425,7 @@ Dialog {
                             spacing: 0
                             checked: appController.notificationsEnabled
                             activeFocusOnTab: true
-                            KeyNavigation.tab: notificationsSwitch.checked ? notifyLeadCombo : updateChecksSwitch
+                            KeyNavigation.tab: notificationsSwitch.checked ? notifyLeadCombo : checkUpdatesNowButton
                             KeyNavigation.backtab: titleSwitch
                             Accessible.name: settingsDialog.tr(
                                                  "Notifiche prossimi episodi",
@@ -405,7 +465,7 @@ Dialog {
                             enabled: notificationsSwitch.checked
                             Layout.preferredWidth: 132
                             activeFocusOnTab: true
-                            KeyNavigation.tab: updateChecksSwitch
+                            KeyNavigation.tab: checkUpdatesNowButton
                             KeyNavigation.backtab: notificationsSwitch
                             Accessible.name: settingsDialog.tr(
                                                  "Anticipo notifica",
@@ -465,19 +525,31 @@ Dialog {
                 }
             }
 
+            Item { Layout.preferredHeight: 14 }
+
+            Text {
+                text: settingsDialog.tr("SERVIZI RETE", "NETWORK SERVICES")
+                color: settingsDialog.sectionLabelColor
+                font.pixelSize: 11
+                font.bold: true
+                font.letterSpacing: 2.2
+            }
+
+            Item { Layout.preferredHeight: 6 }
+
             Rectangle {
                 Layout.fillWidth: true
-                height: 160
-                color: settingsDialog.panelColor
-                radius: 12
-                border.color: settingsDialog.panelBorderColor
-                border.width: 1
+                height: 208
+                color: "transparent"
+                radius: 0
+                border.color: "transparent"
+                border.width: 0
                 clip: true
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 10
+                    anchors.margins: 4
+                    spacing: 0
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -500,6 +572,65 @@ Dialog {
                                 wrapMode: Text.WordWrap
                             }
                         }
+                        Button {
+                            id: checkUpdatesNowButton
+                            text: settingsDialog.tr("Controlla ora", "Check now")
+                            Layout.preferredWidth: 110
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: appController.devProfileMode ? testNotificationButton : updateChecksSwitch
+                            KeyNavigation.backtab: notificationsSwitch.checked ? notifyLeadCombo : notificationsSwitch
+                            Accessible.role: Accessible.Button
+                            Accessible.name: settingsDialog.tr("Controlla aggiornamenti ora", "Check updates now")
+                            Accessible.description: settingsDialog.tr(
+                                                        "Esegue una verifica immediata della disponibilita di nuove versioni",
+                                                        "Runs an immediate check for new versions"
+                                                    )
+                            onClicked: appController.checkForUpdates()
+                            background: Rectangle {
+                                radius: 8
+                                color: checkUpdatesNowButton.hovered ? "#2563eb" : "#1d4ed8"
+                                border.color: "#3b82f6"
+                                border.width: 1
+                            }
+                            contentItem: Text {
+                                text: checkUpdatesNowButton.text
+                                color: "#ffffff"
+                                font.pixelSize: 12
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                        Button {
+                            id: testNotificationButton
+                            text: settingsDialog.tr("Notifica test", "Test notify")
+                            Layout.preferredWidth: 104
+                            visible: appController.devProfileMode
+                            enabled: appController.devProfileMode
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: updateChecksSwitch
+                            KeyNavigation.backtab: checkUpdatesNowButton
+                            Accessible.role: Accessible.Button
+                            Accessible.name: settingsDialog.tr("Invia notifica di test", "Send test notification")
+                            Accessible.description: settingsDialog.tr(
+                                                        "Invia una notifica locale di prova",
+                                                        "Sends a local test notification"
+                                                    )
+                            onClicked: appController.sendTestNotification()
+                            background: Rectangle {
+                                radius: 8
+                                color: testNotificationButton.hovered ? "#334155" : "#1f2937"
+                                border.color: "#475569"
+                                border.width: 1
+                            }
+                            contentItem: Text {
+                                text: testNotificationButton.text
+                                color: "#e2e8f0"
+                                font.pixelSize: 12
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
                         Switch {
                             id: updateChecksSwitch
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
@@ -516,7 +647,7 @@ Dialog {
                             checked: appController.updateChecksEnabled
                             activeFocusOnTab: true
                             KeyNavigation.tab: diagnosticsSwitch
-                            KeyNavigation.backtab: notificationsSwitch.checked ? notifyLeadCombo : notificationsSwitch
+                            KeyNavigation.backtab: appController.devProfileMode ? testNotificationButton : checkUpdatesNowButton
                             Accessible.name: settingsDialog.tr("Controllo aggiornamenti", "Update checks")
                             Accessible.description: settingsDialog.tr(
                                                         "Abilita o disabilita il controllo aggiornamenti su GitHub",
@@ -551,7 +682,32 @@ Dialog {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 1
-                        color: "#3e4b62"
+                        color: "#35516f"
+                        opacity: 0.7
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 10
+                        Layout.bottomMargin: 10
+                        text: appController.devProfileMode
+                              ? settingsDialog.tr(
+                                    "Azioni rapide: verifica aggiornamenti o prova notifica locale.",
+                                    "Quick actions: check updates or send a local test notification."
+                                )
+                              : settingsDialog.tr(
+                                    "Azione rapida: verifica aggiornamenti.",
+                                    "Quick action: check updates."
+                                )
+                        color: "#8ea4bf"
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: "#35516f"
                         opacity: 0.7
                     }
 
@@ -629,24 +785,31 @@ Dialog {
         
         // Section: Profilo
         ColumnLayout {
+            Layout.row: 0
+            Layout.column: 1
             Layout.fillWidth: true
-            spacing: 12
+            Layout.fillHeight: true
+            Layout.preferredWidth: 320
+            Layout.alignment: Qt.AlignTop
+            spacing: 0
             
             Text {
                 text: settingsDialog.tr("PROFILO ANILIST", "ANILIST PROFILE")
-                color: "#718096"
+                color: settingsDialog.sectionLabelColor
                 font.pixelSize: 11
                 font.bold: true
-                font.letterSpacing: 1.5
+                font.letterSpacing: 2.2
             }
+
+            Item { Layout.preferredHeight: 6 }
             
             Rectangle {
                 Layout.fillWidth: true
-                height: 90
-                color: settingsDialog.panelColor
-                radius: 12
-                border.color: settingsDialog.panelBorderColor
-                border.width: 1
+                height: 88
+                color: "transparent"
+                radius: 0
+                border.color: "transparent"
+                border.width: 0
                 clip: true
                 
                 RowLayout {
@@ -731,15 +894,30 @@ Dialog {
                     }
                 }
             }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: "#35516f"
+                opacity: 0.78
+            }
         }
         
-        Item { Layout.fillHeight: true }
+        Item {
+            Layout.row: 1
+            Layout.column: 0
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+        }
         
         // Footer info
         ColumnLayout {
+            Layout.row: 1
+            Layout.column: 1
             Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: 10
             spacing: 4
-            opacity: 0.5
+            opacity: 0.56
             
             Text {
                 text: "AiringDeck v" + appController.appVersion
@@ -758,8 +936,10 @@ Dialog {
         
         Button {
             id: closeBtn
+            Layout.row: 2
+            Layout.column: 1
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 220
+            Layout.preferredWidth: 228
             Layout.preferredHeight: 46
             text: settingsDialog.tr("CONFERMA E CHIUDI", "CONFIRM AND CLOSE")
             activeFocusOnTab: true
@@ -773,8 +953,10 @@ Dialog {
                                     )
             
             background: Rectangle {
+                border.color: "#3b82f6"
+                border.width: 1
                 color: closeBtn.hovered ? "#2563eb" : "#1d4ed8"
-                radius: 10
+                radius: 12
             }
             
             contentItem: Text {
@@ -789,5 +971,6 @@ Dialog {
             
             onClicked: settingsDialog.close()
         }
+    }
     }
 }

@@ -1,10 +1,16 @@
 import logging
 import os
+import re
+import subprocess
+import tempfile
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 from PySide6.QtCore import QObject, Signal, Slot, Property, QThreadPool, QSettings, QTimer, QUrl
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from PySide6.QtGui import QDesktopServices
+import requests
 from services.auth_service import AuthService
 from services.anilist_service import AniListService
 from services.update_service import UpdateService
@@ -40,9 +46,12 @@ class AppController(QObject):
     notificationLeadMinutesChanged = Signal()
     updateAvailableChanged = Signal()
     updateInfoChanged = Signal()
+    updateInstallInProgressChanged = Signal()
+    updateInstallMessageChanged = Signal()
     showPrivacyNoticeChanged = Signal()
     updateChecksEnabledChanged = Signal()
     diagnosticsEnabledChanged = Signal()
+    MAX_SYNC_RETRY_DELAY_MS = 60000
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -72,6 +81,9 @@ class AppController(QObject):
         self._sync_queued = False
         self._sync_retry_attempts = 0
         self._max_sync_retry_attempts = 1
+        self._active_sync_user_visible = True
+        self._pending_sync_retry_user_id = None
+        self._pending_sync_retry_user_visible = True
         self._update_available = False
         self._update_check_in_progress = False
         self._update_latest_version = ""
@@ -79,10 +91,13 @@ class AppController(QObject):
         self._update_notes = ""
         self._update_download_url = ""
         self._update_published_at = ""
+        self._update_install_in_progress = False
+        self._update_install_message = ""
         self._privacy_notice_seen = False
         self._show_privacy_notice = True
         self._update_checks_enabled = True
         self._diagnostics_enabled = False
+        self._dev_profile_mode = self._env_bool("AIRINGDECK_PROFILE", False)
         self._network_bootstrap_completed = False
         
         # High-performance Models
@@ -134,6 +149,10 @@ class AppController(QObject):
         self._update_timer.setInterval(60000) # 60 seconds
         self._update_timer.timeout.connect(self._on_minute_tick)
         self._update_timer.start()
+
+        self._sync_retry_timer = QTimer(self)
+        self._sync_retry_timer.setSingleShot(True)
+        self._sync_retry_timer.timeout.connect(self._on_sync_retry_timeout)
 
         # Debounced filter updates to reduce model churn while typing.
         self._filter_update_timer = QTimer(self)
@@ -238,6 +257,41 @@ class AppController(QObject):
         if raw is None:
             return default
         return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+    def _compute_sync_retry_delay_ms(self, attempt: int, lower_error: str) -> int:
+        attempt = max(1, int(attempt))
+        lower = lower_error or ""
+        base_delay_ms = 2000
+        if "http429" in lower or "rate limit" in lower:
+            base_delay_ms = 10000
+        elif "timeout" in lower:
+            base_delay_ms = 4000
+        delay = base_delay_ms * (2 ** (attempt - 1))
+        return min(delay, self.MAX_SYNC_RETRY_DELAY_MS)
+
+    def _cancel_pending_sync_retry(self):
+        self._pending_sync_retry_user_id = None
+        self._pending_sync_retry_user_visible = True
+        if self._sync_retry_timer.isActive():
+            self._sync_retry_timer.stop()
+
+    def _schedule_sync_retry(self, user_id: int, delay_ms: int, user_visible: bool):
+        self._pending_sync_retry_user_id = int(user_id)
+        self._pending_sync_retry_user_visible = bool(user_visible)
+        self._sync_retry_timer.start(max(250, int(delay_ms)))
+
+    def _on_sync_retry_timeout(self):
+        user_id = self._pending_sync_retry_user_id
+        user_visible = self._pending_sync_retry_user_visible
+        self._pending_sync_retry_user_id = None
+        if not user_id or not self._is_authenticated or self._sync_in_progress:
+            return
+        current_user_id = self._user_info.get("id")
+        if not current_user_id:
+            return
+        if int(current_user_id) != int(user_id):
+            return
+        self._start_sync_worker(int(user_id), user_visible=user_visible)
 
     def _set_loading(self, loading: bool, message: str = ""):
         loading_changed = self._is_loading != loading
@@ -408,7 +462,7 @@ class AppController(QObject):
         self.notificationLeadMinutesChanged.emit()
         if self._notifications_enabled:
             self._check_episode_notifications()
-    
+
     @Property('QVariantMap', notify=userInfoChanged)
     def userInfo(self):
         return self._user_info
@@ -571,6 +625,10 @@ class AppController(QObject):
     def noTrackerMode(self):
         return True
 
+    @Property(bool, constant=True)
+    def devProfileMode(self):
+        return self._dev_profile_mode
+
     @Property(bool, notify=showPrivacyNoticeChanged)
     def showPrivacyNotice(self):
         return self._show_privacy_notice
@@ -625,6 +683,24 @@ class AppController(QObject):
     def updatePublishedAt(self):
         return self._update_published_at
 
+    @Property(bool, notify=updateInstallInProgressChanged)
+    def updateInstallInProgress(self):
+        return self._update_install_in_progress
+
+    @Property(str, notify=updateInstallMessageChanged)
+    def updateInstallMessage(self):
+        return self._update_install_message
+
+    def _set_update_install_state(self, in_progress: bool, message: str = ""):
+        in_progress = bool(in_progress)
+        message = message or ""
+        if self._update_install_in_progress != in_progress:
+            self._update_install_in_progress = in_progress
+            self.updateInstallInProgressChanged.emit()
+        if self._update_install_message != message:
+            self._update_install_message = message
+            self.updateInstallMessageChanged.emit()
+
     @Slot()
     def checkForUpdates(self):
         if not self._update_checks_enabled:
@@ -661,6 +737,7 @@ class AppController(QObject):
         self._update_notes = str(payload.get("notes") or "")
         self._update_download_url = str(payload.get("download_url") or "")
         self._update_published_at = str(payload.get("published_at") or "")
+        self._set_update_install_state(False, "")
 
         if available and latest and latest == self._dismissed_update_version:
             available = False
@@ -679,12 +756,145 @@ class AppController(QObject):
         if not self._is_loading and self._status_message == self._msg_checking_updates():
             self._set_status_message(self._msg_ready())
 
+    @staticmethod
+    def _extract_filename_from_content_disposition(content_disposition: str) -> str:
+        if not content_disposition:
+            return ""
+        ext_match = re.search(r"filename\*\s*=\s*UTF-8''([^;]+)", content_disposition, flags=re.IGNORECASE)
+        if ext_match:
+            return unquote(ext_match.group(1).strip().strip('"'))
+        basic_match = re.search(r'filename\s*=\s*"([^"]+)"', content_disposition, flags=re.IGNORECASE)
+        if basic_match:
+            return basic_match.group(1).strip()
+        fallback_match = re.search(r"filename\s*=\s*([^;]+)", content_disposition, flags=re.IGNORECASE)
+        if fallback_match:
+            return fallback_match.group(1).strip().strip('"')
+        return ""
+
+    def _download_update_installer(self, url: str, version: str) -> dict:
+        if not url:
+            raise ValueError("Missing update download URL")
+
+        response = requests.get(
+            url,
+            timeout=30,
+            stream=True,
+            allow_redirects=True,
+            headers={
+                "Accept": "application/octet-stream,application/vnd.github+json,*/*",
+                "User-Agent": f"AiringDeck-Updater/{APP_VERSION}",
+            },
+        )
+        response.raise_for_status()
+
+        disposition_name = self._extract_filename_from_content_disposition(
+            str(response.headers.get("content-disposition") or "")
+        )
+        parsed_url = urlparse(str(response.url or url))
+        url_name = Path(unquote(parsed_url.path)).name
+        file_name = (disposition_name or url_name or "").strip()
+
+        content_type = str(response.headers.get("content-type") or "").lower()
+        ext = Path(file_name).suffix.lower()
+        if ext not in {".exe", ".msi", ".msix", ".msixbundle"}:
+            if "text/html" in content_type:
+                raise RuntimeError("Release URL is not a direct installer asset")
+            if "application/x-msi" in content_type:
+                ext = ".msi"
+            elif "application/msix" in content_type:
+                ext = ".msix"
+            elif "application/appxbundle" in content_type:
+                ext = ".msixbundle"
+            else:
+                ext = ".exe"
+            normalized = (version or "latest").replace(" ", "").replace("/", "-")
+            file_name = f"AiringDeck-Setup-{normalized}{ext}"
+
+        target_dir = Path(tempfile.gettempdir()) / "AiringDeck" / "updates"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / file_name
+
+        with target_path.open("wb") as out_file:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    out_file.write(chunk)
+
+        if not target_path.exists() or target_path.stat().st_size <= 0:
+            raise RuntimeError("Downloaded installer is empty")
+
+        return {"path": str(target_path), "url": str(response.url or url)}
+
+    def _launch_downloaded_installer(self, installer_path: str):
+        path = Path(installer_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Installer not found: {installer_path}")
+
+        ext = path.suffix.lower()
+        if ext == ".msi":
+            command = ["msiexec", "/i", str(path)]
+        else:
+            command = [str(path)]
+
+        subprocess.Popen(command)
+
+    def _on_update_install_result(self, payload):
+        if not isinstance(payload, dict):
+            return
+        installer_path = str(payload.get("path") or "").strip()
+        if not installer_path:
+            self._set_update_install_state(False, self._msg_update_failed())
+            self._set_status_message(self._msg_update_failed())
+            return
+
+        try:
+            self._launch_downloaded_installer(installer_path)
+        except Exception as exc:
+            logger.warning("Failed to launch installer '%s': %s", installer_path, exc)
+            self._set_update_install_state(False, self._msg_update_failed())
+            self._set_status_message(self._msg_update_failed())
+            return
+
+        self._set_update_install_state(False, self._msg_update_started())
+        self._set_status_message(self._msg_update_started())
+        self.dismissUpdateNotice()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
+
+    def _on_update_install_error(self, err):
+        err_text = self._extract_error_text(err)
+        logger.warning("In-app update failed: %s", err_text)
+        self._set_update_install_state(False, self._msg_update_failed())
+        self._set_status_message(self._msg_update_failed())
+
+    def _on_update_install_finished(self):
+        if self._update_install_in_progress:
+            self._set_update_install_state(False, "")
+
+    @Slot()
+    def startUpdateInstall(self):
+        if self._update_install_in_progress:
+            return
+        if not self._update_download_url:
+            self._set_status_message(self._msg_update_missing_url())
+            return
+        self._set_update_install_state(True, self._msg_update_downloading())
+        self._set_status_message(self._msg_update_downloading())
+
+        worker = Worker(
+            self._download_update_installer,
+            self._update_download_url,
+            self._update_latest_version or APP_VERSION,
+        )
+        worker.signals.result.connect(self._on_update_install_result)
+        worker.signals.error.connect(self._on_update_install_error)
+        worker.signals.finished.connect(self._on_update_install_finished)
+        self._thread_pool.start(worker)
+
     @Slot()
     def openUpdatePage(self):
-        if not self._update_download_url:
-            return
-        if not QDesktopServices.openUrl(QUrl(self._update_download_url)):
-            logger.warning("Failed to open update URL: %s", self._update_download_url)
+        # Backward-compatible slot name used by existing QML/tests.
+        self.startUpdateInstall()
 
     @Slot()
     def openSelectedAnimeOnAniList(self):
@@ -753,6 +963,9 @@ class AppController(QObject):
         self._weekly_schedule_cache = [[] for _ in range(7)]
         self._full_airing_entries = []
         self._clear_offline_cache()
+        self._cancel_pending_sync_retry()
+        self._sync_retry_attempts = 0
+        self._sync_queued = False
         # Force a UI refresh even when filter state is unchanged.
         self._data_revision += 1
         self._ui_model_key = None
@@ -812,27 +1025,37 @@ class AppController(QObject):
     
     @Slot()
     def syncAnimeList(self):
+        self._request_sync(user_visible=True)
+
+    def _request_sync(self, user_visible: bool) -> bool:
         """Sync anime list from AniList"""
         logger.info("Sync anime list requested")
         if not self._is_authenticated:
-            self._set_loading(False, self._msg_login_required_sync())
-            return
+            if user_visible:
+                self._set_loading(False, self._msg_login_required_sync())
+            return False
 
         user_id = self._user_info.get("id")
         if not user_id:
-            self._set_loading(False, self._msg_missing_profile_for_sync())
-            return
+            if user_visible:
+                self._set_loading(False, self._msg_missing_profile_for_sync())
+            return False
 
         if self._sync_in_progress:
             self._sync_queued = True
             self._set_loading(True, self._msg_sync_queued())
-            return
+            return False
 
-        self._start_sync_worker(user_id)
+        if self._sync_retry_timer.isActive():
+            self._cancel_pending_sync_retry()
+        self._start_sync_worker(int(user_id), user_visible=user_visible)
+        return True
 
-    def _start_sync_worker(self, user_id: int):
+    def _start_sync_worker(self, user_id: int, user_visible: bool = True):
         self._sync_in_progress = True
-        self._set_loading(True, self._msg_syncing_anime_list())
+        self._active_sync_user_visible = user_visible
+        if user_visible:
+            self._set_loading(True, self._msg_syncing_anime_list())
         worker = Worker(self._anilist_service.get_watching_anime, user_id)
         worker.signals.result.connect(self._on_sync_worker_result)
         worker.signals.error.connect(self._on_sync_worker_error)
@@ -841,7 +1064,8 @@ class AppController(QObject):
     def _on_sync_worker_result(self, anime_list):
         self._sync_in_progress = False
         self._sync_retry_attempts = 0
-        self._on_anime_list_result(anime_list)
+        self._cancel_pending_sync_retry()
+        self._on_anime_list_result(anime_list, show_status=self._active_sync_user_visible)
         self._drain_queued_sync_request()
 
     def _on_sync_worker_error(self, err):
@@ -849,6 +1073,7 @@ class AppController(QObject):
         err_text = self._extract_error_text(err)
         lower = err_text.lower()
         user_id = self._user_info.get("id")
+        user_visible = self._active_sync_user_visible
 
         if (
             self._is_transient_sync_error(lower)
@@ -857,20 +1082,24 @@ class AppController(QObject):
             and user_id
         ):
             self._sync_retry_attempts += 1
+            delay_ms = self._compute_sync_retry_delay_ms(self._sync_retry_attempts, lower)
             logger.warning(
-                "Transient sync error, auto-retrying (%d/%d): %s",
+                "Transient sync error, auto-retrying (%d/%d in %dms): %s",
                 self._sync_retry_attempts,
                 self._max_sync_retry_attempts,
+                delay_ms,
                 err_text,
             )
-            self._set_loading(
-                True,
-                self._msg_retrying_sync(self._sync_retry_attempts, self._max_sync_retry_attempts),
-            )
-            self._start_sync_worker(int(user_id))
+            if user_visible:
+                self._set_loading(
+                    True,
+                    self._msg_retrying_sync(self._sync_retry_attempts, self._max_sync_retry_attempts),
+                )
+            self._schedule_sync_retry(int(user_id), delay_ms, user_visible=user_visible)
             return
 
         self._sync_retry_attempts = 0
+        self._cancel_pending_sync_retry()
         self._on_error(err)
         self._drain_queued_sync_request()
 
@@ -883,7 +1112,7 @@ class AppController(QObject):
         user_id = self._user_info.get("id")
         if not user_id:
             return
-        self._start_sync_worker(int(user_id))
+        self._start_sync_worker(int(user_id), user_visible=True)
 
     def _is_transient_sync_error(self, lower_error: str) -> bool:
         return (
@@ -1118,7 +1347,7 @@ class AppController(QObject):
 
         return sorted(entries, key=airing_key, reverse=reverse)
 
-    def _on_anime_list_result(self, anime_list, from_cache=False):
+    def _on_anime_list_result(self, anime_list, from_cache=False, show_status=True):
         """Handle anime list result and process for calendar"""
         self._full_anime_list = anime_list
         self._data_revision += 1
@@ -1183,7 +1412,8 @@ class AppController(QObject):
         self.animeListChanged.emit()
         self._refresh_entry_ratings()
         self._check_episode_notifications()
-        self._set_loading(False, self._msg_synced_count(len(anime_list)))
+        if show_status:
+            self._set_loading(False, self._msg_synced_count(len(anime_list)))
         logger.info("Synced %d anime. Day counts: %s", len(anime_list), self._daily_counts)
 
     def _init_tray_icon(self):
@@ -1342,4 +1572,28 @@ class AppController(QObject):
         return self._tr(
             "Controllo aggiornamenti...",
             "Checking updates...",
+        )
+
+    def _msg_update_downloading(self) -> str:
+        return self._tr(
+            "Download aggiornamento in corso...",
+            "Downloading update...",
+        )
+
+    def _msg_update_started(self) -> str:
+        return self._tr(
+            "Installer avviato. Chiusura app...",
+            "Installer started. Closing app...",
+        )
+
+    def _msg_update_failed(self) -> str:
+        return self._tr(
+            "Aggiornamento automatico non riuscito.",
+            "Automatic update failed.",
+        )
+
+    def _msg_update_missing_url(self) -> str:
+        return self._tr(
+            "Link aggiornamento non disponibile.",
+            "Update link not available.",
         )

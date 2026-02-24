@@ -124,16 +124,45 @@ class UpdateService:
                 break
         return "\n".join(lines) if lines else "A new version is available."
 
+    def _pick_windows_installer_asset(self, payload: dict[str, Any]) -> str | None:
+        assets = payload.get("assets")
+        if not isinstance(assets, list):
+            return None
+
+        ranked: list[tuple[int, str]] = []
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            name = str(asset.get("name") or "").strip().lower()
+            url = str(asset.get("browser_download_url") or "").strip()
+            if not url:
+                continue
+            if name.endswith(".exe") and "setup" in name:
+                ranked.append((0, url))
+            elif name.endswith(".exe"):
+                ranked.append((1, url))
+            elif name.endswith(".msi"):
+                ranked.append((2, url))
+            elif name.endswith(".msix") or name.endswith(".msixbundle"):
+                ranked.append((3, url))
+
+        if not ranked:
+            return None
+        ranked.sort(key=lambda item: item[0])
+        return ranked[0][1]
+
     def _from_release_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         raw_tag = str(payload.get("tag_name") or payload.get("name") or "").strip()
         latest_version = self._extract_version(raw_tag)
         if not latest_version:
             return None
+        direct_download = self._pick_windows_installer_asset(payload)
         return {
             "latest_version": latest_version,
             "title": str(payload.get("name") or f"v{latest_version}"),
             "notes": self._summarize_notes(str(payload.get("body") or "")),
             "download_url": self._download_url
+            or direct_download
             or str(payload.get("html_url") or f"https://github.com/{self._repo}/releases/latest"),
             "published_at": str(payload.get("published_at") or ""),
             "source": "release",

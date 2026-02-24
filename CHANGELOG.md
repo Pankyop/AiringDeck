@@ -6,7 +6,21 @@ This project follows Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Changed
+- No pending entries.
+
+## [3.4.0] - 2026-02-24
+
+### Added
+- In-app updater flow: `Update now` downloads the Windows installer and starts it directly.
+- Release feed parsing now prefers Windows installer assets from GitHub releases.
+- Update modal now shows installer progress/state messages during update start.
+
+### Changed
+- Settings dialog redesign with a horizontal layout and refreshed section structure.
+- Removed background sync configuration and related periodic sync behavior from settings.
+- Added manual `Check now` action in settings for on-demand update checks.
+- Kept test-only controls hidden from normal app profile builds.
 
 ## [3.3.0] - 2026-02-23
 
