@@ -1,6 +1,6 @@
 # AiringDeck Privacy and Data Policy
 
-Last updated: 2026-02-22
+Last updated: 2026-03-02
 
 This document describes what data AiringDeck processes and why.
 It is a technical policy document and not legal advice.
@@ -24,7 +24,7 @@ It is a technical policy document and not legal advice.
 
 - UI language, filter state, sorting, notification preferences, update-check preference, diagnostics preference.
 - Purpose: preserve user UX choices between sessions.
-- Storage: local `QSettings` key-value store.
+- Storage: local SQLite settings store (`settings_v1.sqlite3`), with one-shot migration from legacy `QSettings`.
 
 ### 4) Update metadata
 
