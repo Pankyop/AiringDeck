@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -17,10 +17,15 @@ from services.update_service import UpdateService
 from core.worker import Worker
 from core.anime_model import AnimeModel
 from core.native_accel import filter_entries_advanced, is_native_available
+from core.settings_store import open_settings_store
 from version import APP_VERSION
 
 
 logger = logging.getLogger("airingdeck.controller")
+
+
+class DirectInstallerUnavailableError(RuntimeError):
+    """Raised when update URL resolves to release page instead of installer binary."""
 
 class AppController(QObject):
     """Main application controller - Bridge tra Python e QML"""
@@ -116,7 +121,8 @@ class AppController(QObject):
         logger.info("Native filter acceleration: %s", "enabled" if is_native_available() else "fallback python")
 
         # Persistent Settings
-        self._settings = QSettings("AiringDeck", "AiringDeck")
+        legacy_settings = QSettings("AiringDeck", "AiringDeck")
+        self._settings = open_settings_store(legacy_settings)
         self._use_english_title = self._settings.value("use_english_title", False, type=bool)
         self._selected_genre = self._settings.value("selected_genre", "All genres", type=str)
         self._only_today = self._settings.value("only_today", False, type=bool)
@@ -757,6 +763,21 @@ class AppController(QObject):
             self._set_status_message(self._msg_ready())
 
     @staticmethod
+    def _is_installer_binary_url(url: str) -> bool:
+        if not url:
+            return False
+        suffix = Path(unquote(urlparse(url).path)).suffix.lower()
+        return suffix in {".exe", ".msi", ".msix", ".msixbundle"}
+
+    def _open_update_download_url(self) -> bool:
+        if not self._update_download_url:
+            return False
+        ok = bool(QDesktopServices.openUrl(QUrl(self._update_download_url)))
+        if not ok:
+            logger.warning("Failed to open update URL: %s", self._update_download_url)
+        return ok
+
+    @staticmethod
     def _extract_filename_from_content_disposition(content_disposition: str) -> str:
         if not content_disposition:
             return ""
@@ -798,7 +819,7 @@ class AppController(QObject):
         ext = Path(file_name).suffix.lower()
         if ext not in {".exe", ".msi", ".msix", ".msixbundle"}:
             if "text/html" in content_type:
-                raise RuntimeError("Release URL is not a direct installer asset")
+                raise DirectInstallerUnavailableError("Release URL is not a direct installer asset")
             if "application/x-msi" in content_type:
                 ext = ".msi"
             elif "application/msix" in content_type:
@@ -835,23 +856,24 @@ class AppController(QObject):
         else:
             command = [str(path)]
 
-        subprocess.Popen(command)
+        # Installer path/args are controlled by app logic and validated before launch.
+        subprocess.Popen(command)  # nosec B603
 
     def _on_update_install_result(self, payload):
         if not isinstance(payload, dict):
             return
         installer_path = str(payload.get("path") or "").strip()
         if not installer_path:
-            self._set_update_install_state(False, self._msg_update_failed())
-            self._set_status_message(self._msg_update_failed())
+            self._set_update_install_state(False, self._msg_update_download_failed())
+            self._set_status_message(self._msg_update_download_failed())
             return
 
         try:
             self._launch_downloaded_installer(installer_path)
         except Exception as exc:
             logger.warning("Failed to launch installer '%s': %s", installer_path, exc)
-            self._set_update_install_state(False, self._msg_update_failed())
-            self._set_status_message(self._msg_update_failed())
+            self._set_update_install_state(False, self._msg_update_launch_failed())
+            self._set_status_message(self._msg_update_launch_failed())
             return
 
         self._set_update_install_state(False, self._msg_update_started())
@@ -864,8 +886,21 @@ class AppController(QObject):
     def _on_update_install_error(self, err):
         err_text = self._extract_error_text(err)
         logger.warning("In-app update failed: %s", err_text)
-        self._set_update_install_state(False, self._msg_update_failed())
-        self._set_status_message(self._msg_update_failed())
+        exc_obj = err[1] if isinstance(err, tuple) and len(err) >= 2 else err
+
+        if isinstance(exc_obj, DirectInstallerUnavailableError):
+            opened = self._open_update_download_url()
+            message = self._msg_update_fallback_opened() if opened else self._msg_update_fallback_manual()
+        elif isinstance(exc_obj, requests.RequestException):
+            message = self._msg_update_download_failed()
+        elif "direct installer asset" in err_text.lower():
+            opened = self._open_update_download_url()
+            message = self._msg_update_fallback_opened() if opened else self._msg_update_fallback_manual()
+        else:
+            message = self._msg_update_download_failed()
+
+        self._set_update_install_state(False, message)
+        self._set_status_message(message)
 
     def _on_update_install_finished(self):
         if self._update_install_in_progress:
@@ -877,6 +912,12 @@ class AppController(QObject):
             return
         if not self._update_download_url:
             self._set_status_message(self._msg_update_missing_url())
+            return
+        if not self._is_installer_binary_url(self._update_download_url):
+            opened = self._open_update_download_url()
+            message = self._msg_update_fallback_opened() if opened else self._msg_update_fallback_manual()
+            self._set_update_install_state(False, message)
+            self._set_status_message(message)
             return
         self._set_update_install_state(True, self._msg_update_downloading())
         self._set_status_message(self._msg_update_downloading())
@@ -1590,6 +1631,30 @@ class AppController(QObject):
         return self._tr(
             "Aggiornamento automatico non riuscito.",
             "Automatic update failed.",
+        )
+
+    def _msg_update_download_failed(self) -> str:
+        return self._tr(
+            "Download aggiornamento non riuscito.",
+            "Update download failed.",
+        )
+
+    def _msg_update_launch_failed(self) -> str:
+        return self._tr(
+            "Avvio installer non riuscito.",
+            "Installer launch failed.",
+        )
+
+    def _msg_update_fallback_opened(self) -> str:
+        return self._tr(
+            "Installer diretto non disponibile. Pagina release aperta.",
+            "Direct installer unavailable. Release page opened.",
+        )
+
+    def _msg_update_fallback_manual(self) -> str:
+        return self._tr(
+            "Installer diretto non disponibile. Apri la pagina release.",
+            "Direct installer unavailable. Open the release page.",
         )
 
     def _msg_update_missing_url(self) -> str:
