@@ -9,6 +9,18 @@ This project follows Keep a Changelog and Semantic Versioning.
 ### Changed
 - No pending entries.
 
+## [3.5.0] - 2026-03-02
+
+### Added
+- SQLite settings backend (`schema v1`) with startup one-shot migration from legacy `QSettings`.
+- Explicit updater fallback behavior when direct installer assets are not available.
+- New automated tests for storage migration idempotency/fallback and updater error branches.
+
+### Changed
+- Updater install flow now reports specific user-visible outcomes for download failure, launch failure, and release-page fallback.
+- Local preferences documentation aligned to SQLite-backed persistence.
+- Security quality gate compatibility for trusted installer launcher path (`bandit` policy annotations).
+
 ## [3.4.0] - 2026-02-24
 
 ### Added

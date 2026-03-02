@@ -1,6 +1,6 @@
 # Release v3.5.0 (Draft)
 
-Release date: TBD
+Release date: 2026-03-02
 
 ## Highlights
 

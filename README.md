@@ -89,7 +89,7 @@ AIRINGDECK_ANILIST_MIN_INTERVAL_SEC=2.1
 AIRINGDECK_ANILIST_TIMEOUT_SEC=10
 
 # Optional explicit API user-agent
-AIRINGDECK_USER_AGENT=AiringDeck/3.4.0 (+https://github.com/Pankyop/AiringDeck)
+AIRINGDECK_USER_AGENT=AiringDeck/3.5.0 (+https://github.com/Pankyop/AiringDeck)
 ```
 
 ### Build .exe
