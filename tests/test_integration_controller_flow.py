@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+import requests
 from PySide6.QtCore import QObject, Signal
 
 import core.app_controller as app_controller_module
@@ -113,7 +114,21 @@ class FakeUpdateService:
             "latest_version": "3.4.0",
             "title": "3.4.0",
             "notes": "• Better notifications\n• Faster startup",
-            "download_url": "https://example.com/releases/3.4.0",
+            "download_url": "https://example.com/releases/download/v3.4.0/AiringDeck-Setup-3.4.0.exe",
+            "published_at": "2026-02-19T12:00:00Z",
+            "source": "release",
+        }
+
+
+class FakeReleasePageUpdateService:
+    def check_latest(self, current_version):
+        return {
+            "available": True,
+            "current_version": current_version,
+            "latest_version": "3.4.0",
+            "title": "3.4.0",
+            "notes": "• Better notifications\n• Faster startup",
+            "download_url": "https://example.com/releases/tag/v3.4.0",
             "published_at": "2026-02-19T12:00:00Z",
             "source": "release",
         }
@@ -326,7 +341,7 @@ def test_integration_update_check_sets_banner_state(monkeypatch):
     assert c.updateAvailable is True
     assert c.updateLatestVersion == "3.4.0"
     assert "Better notifications" in c.updateNotes
-    assert c.updateDownloadUrl == "https://example.com/releases/3.4.0"
+    assert c.updateDownloadUrl.endswith("AiringDeck-Setup-3.4.0.exe")
 
 
 def test_integration_update_dismiss_persists_version(monkeypatch):
@@ -394,3 +409,64 @@ def test_integration_start_update_install_no_url(monkeypatch):
 
     assert launched["count"] == 0
     assert "Link aggiornamento non disponibile" in c.statusMessage
+
+
+def test_integration_start_update_install_release_page_fallback_opens_browser(monkeypatch):
+    c = _make_controller(monkeypatch, update_service_cls=FakeReleasePageUpdateService)
+    c.checkForUpdates()
+    opened = {"url": ""}
+    downloads = {"count": 0}
+
+    monkeypatch.setattr(
+        app_controller_module.QDesktopServices,
+        "openUrl",
+        lambda url: opened.__setitem__("url", url.toString()) or True,
+    )
+    monkeypatch.setattr(
+        c,
+        "_download_update_installer",
+        lambda *_args: downloads.__setitem__("count", downloads["count"] + 1),
+    )
+
+    c.startUpdateInstall()
+
+    assert downloads["count"] == 0
+    assert opened["url"].endswith("/releases/tag/v3.4.0")
+    assert "Pagina release aperta" in c.statusMessage
+    assert c.updateInstallInProgress is False
+
+
+def test_integration_start_update_install_download_failure_sets_explicit_message(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c.checkForUpdates()
+
+    def _raise_download(*_args, **_kwargs):
+        raise requests.RequestException("network down")
+
+    monkeypatch.setattr(c, "_download_update_installer", _raise_download)
+
+    c.startUpdateInstall()
+
+    assert "Download aggiornamento non riuscito" in c.statusMessage
+    assert c.updateInstallInProgress is False
+
+
+def test_integration_start_update_install_launch_failure_sets_explicit_message(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c.checkForUpdates()
+
+    monkeypatch.setattr(
+        c,
+        "_download_update_installer",
+        lambda *_args, **_kwargs: {"path": "C:/tmp/AiringDeck-Setup-3.4.0.exe"},
+    )
+    monkeypatch.setattr(
+        c,
+        "_launch_downloaded_installer",
+        lambda _path: (_ for _ in ()).throw(OSError("blocked")),
+    )
+
+    c.startUpdateInstall()
+
+    assert "Avvio installer non riuscito" in c.statusMessage
+    assert c.updateInstallInProgress is False
