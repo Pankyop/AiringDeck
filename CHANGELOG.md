@@ -9,6 +9,15 @@ This project follows Keep a Changelog and Semantic Versioning.
 ### Changed
 - No pending entries.
 
+## [3.5.1] - 2026-03-04
+
+### Added
+- New updater regression tests for URL scheme validation, filename sanitization, and non-installer JSON payload handling.
+
+### Changed
+- Updater download flow now rejects non-HTTP(S) URLs and sanitizes installer filenames from remote headers.
+- In-app updater now reports an explicit generic failure message for unexpected non-network install errors.
+
 ## [3.5.0] - 2026-03-02
 
 ### Added
