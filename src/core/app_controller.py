@@ -27,6 +27,7 @@ logger = logging.getLogger("airingdeck.controller")
 class DirectInstallerUnavailableError(RuntimeError):
     """Raised when update URL resolves to release page instead of installer binary."""
 
+
 class AppController(QObject):
     """Main application controller - Bridge tra Python e QML"""
     
@@ -57,6 +58,7 @@ class AppController(QObject):
     updateChecksEnabledChanged = Signal()
     diagnosticsEnabledChanged = Signal()
     MAX_SYNC_RETRY_DELAY_MS = 60000
+    _INSTALLER_EXTENSIONS = {".exe", ".msi", ".msix", ".msixbundle"}
     
     def __init__(self, engine: QQmlApplicationEngine):
         super().__init__()
@@ -762,15 +764,27 @@ class AppController(QObject):
         if not self._is_loading and self._status_message == self._msg_checking_updates():
             self._set_status_message(self._msg_ready())
 
-    @staticmethod
-    def _is_installer_binary_url(url: str) -> bool:
+    @classmethod
+    def _is_http_download_url(cls, url: str) -> bool:
         if not url:
             return False
+        parsed = urlparse(url)
+        return parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc)
+
+    @classmethod
+    def _is_installer_binary_url(cls, url: str) -> bool:
+        if not url:
+            return False
+        if not cls._is_http_download_url(url):
+            return False
         suffix = Path(unquote(urlparse(url).path)).suffix.lower()
-        return suffix in {".exe", ".msi", ".msix", ".msixbundle"}
+        return suffix in cls._INSTALLER_EXTENSIONS
 
     def _open_update_download_url(self) -> bool:
         if not self._update_download_url:
+            return False
+        if not self._is_http_download_url(self._update_download_url):
+            logger.warning("Rejected non-http update URL: %s", self._update_download_url)
             return False
         ok = bool(QDesktopServices.openUrl(QUrl(self._update_download_url)))
         if not ok:
@@ -792,9 +806,25 @@ class AppController(QObject):
             return fallback_match.group(1).strip().strip('"')
         return ""
 
+    @staticmethod
+    def _normalize_download_version(version: str) -> str:
+        normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", str(version or "latest"))
+        normalized = normalized.strip("-")
+        return normalized or "latest"
+
+    @staticmethod
+    def _sanitize_download_filename(file_name: str) -> str:
+        if not file_name:
+            return ""
+        normalized = file_name.strip().replace("\\", "/")
+        name = Path(normalized).name.strip()
+        return name.lstrip(".")
+
     def _download_update_installer(self, url: str, version: str) -> dict:
         if not url:
             raise ValueError("Missing update download URL")
+        if not self._is_http_download_url(url):
+            raise ValueError(f"Unsupported update URL: {url}")
 
         response = requests.get(
             url,
@@ -808,19 +838,23 @@ class AppController(QObject):
         )
         response.raise_for_status()
 
+        final_url = str(response.url or url)
+        if not self._is_http_download_url(final_url):
+            raise ValueError(f"Unsupported redirected update URL: {final_url}")
+
         disposition_name = self._extract_filename_from_content_disposition(
             str(response.headers.get("content-disposition") or "")
         )
-        parsed_url = urlparse(str(response.url or url))
+        parsed_url = urlparse(final_url)
         url_name = Path(unquote(parsed_url.path)).name
-        file_name = (disposition_name or url_name or "").strip()
+        file_name = self._sanitize_download_filename(disposition_name or url_name)
 
         content_type = str(response.headers.get("content-type") or "").lower()
         ext = Path(file_name).suffix.lower()
-        if ext not in {".exe", ".msi", ".msix", ".msixbundle"}:
-            if "text/html" in content_type:
+        if ext not in self._INSTALLER_EXTENSIONS:
+            if "text/html" in content_type or "application/json" in content_type:
                 raise DirectInstallerUnavailableError("Release URL is not a direct installer asset")
-            if "application/x-msi" in content_type:
+            if "application/x-msi" in content_type or "application/msi" in content_type:
                 ext = ".msi"
             elif "application/msix" in content_type:
                 ext = ".msix"
@@ -828,12 +862,14 @@ class AppController(QObject):
                 ext = ".msixbundle"
             else:
                 ext = ".exe"
-            normalized = (version or "latest").replace(" ", "").replace("/", "-")
+            normalized = self._normalize_download_version(version)
             file_name = f"AiringDeck-Setup-{normalized}{ext}"
 
         target_dir = Path(tempfile.gettempdir()) / "AiringDeck" / "updates"
         target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / file_name
+        target_path = (target_dir / file_name).resolve()
+        if not target_path.is_relative_to(target_dir.resolve()):
+            raise RuntimeError("Unsafe installer filename in update response")
 
         with target_path.open("wb") as out_file:
             for chunk in response.iter_content(chunk_size=1024 * 1024):
@@ -843,7 +879,7 @@ class AppController(QObject):
         if not target_path.exists() or target_path.stat().st_size <= 0:
             raise RuntimeError("Downloaded installer is empty")
 
-        return {"path": str(target_path), "url": str(response.url or url)}
+        return {"path": str(target_path), "url": final_url}
 
     def _launch_downloaded_installer(self, installer_path: str):
         path = Path(installer_path)
@@ -897,7 +933,7 @@ class AppController(QObject):
             opened = self._open_update_download_url()
             message = self._msg_update_fallback_opened() if opened else self._msg_update_fallback_manual()
         else:
-            message = self._msg_update_download_failed()
+            message = self._msg_update_failed()
 
         self._set_update_install_state(False, message)
         self._set_status_message(message)
