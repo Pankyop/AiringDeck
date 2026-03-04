@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+from pathlib import Path
 
+import pytest
 import requests
 from PySide6.QtCore import QObject, Signal
 
@@ -451,6 +453,22 @@ def test_integration_start_update_install_download_failure_sets_explicit_message
     assert c.updateInstallInProgress is False
 
 
+def test_integration_start_update_install_unexpected_error_sets_generic_message(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c.checkForUpdates()
+
+    monkeypatch.setattr(
+        c,
+        "_download_update_installer",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("disk full")),
+    )
+
+    c.startUpdateInstall()
+
+    assert "Aggiornamento automatico non riuscito" in c.statusMessage
+    assert c.updateInstallInProgress is False
+
+
 def test_integration_start_update_install_launch_failure_sets_explicit_message(monkeypatch):
     c = _make_controller(monkeypatch)
     c.checkForUpdates()
@@ -470,3 +488,76 @@ def test_integration_start_update_install_launch_failure_sets_explicit_message(m
 
     assert "Avvio installer non riuscito" in c.statusMessage
     assert c.updateInstallInProgress is False
+
+
+def test_integration_start_update_install_rejects_non_http_url(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c.checkForUpdates()
+    c._update_download_url = "file:///tmp/AiringDeck-Setup-3.4.0.exe"
+    opened = {"count": 0}
+
+    monkeypatch.setattr(
+        app_controller_module.QDesktopServices,
+        "openUrl",
+        lambda _url: opened.__setitem__("count", opened["count"] + 1) or True,
+    )
+
+    c.startUpdateInstall()
+
+    assert opened["count"] == 0
+    assert "Installer diretto non disponibile. Apri la pagina release." in c.statusMessage
+    assert c.updateInstallInProgress is False
+
+
+def test_integration_download_update_installer_sanitizes_filename(monkeypatch, tmp_path):
+    c = _make_controller(monkeypatch)
+
+    class _FakeResponse:
+        url = "https://example.com/releases/download/v3.4.0/AiringDeck-Setup-3.4.0.exe"
+        headers = {
+            "content-disposition": 'attachment; filename="../../EvilInstaller.exe"',
+            "content-type": "application/octet-stream",
+        }
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=0):
+            del chunk_size
+            yield b"MZfake"
+
+    monkeypatch.setattr(app_controller_module.requests, "get", lambda *args, **kwargs: _FakeResponse())
+    monkeypatch.setattr(app_controller_module.tempfile, "gettempdir", lambda: str(tmp_path))
+
+    payload = c._download_update_installer(
+        "https://example.com/releases/download/v3.4.0/AiringDeck-Setup-3.4.0.exe",
+        "3.4.0",
+    )
+
+    saved_path = Path(payload["path"])
+    assert saved_path.parent == (tmp_path / "AiringDeck" / "updates").resolve()
+    assert saved_path.name == "EvilInstaller.exe"
+    assert saved_path.read_bytes() == b"MZfake"
+
+
+def test_integration_download_update_installer_rejects_json_release_payload(monkeypatch):
+    c = _make_controller(monkeypatch)
+
+    class _FakeResponse:
+        url = "https://example.com/releases/tag/v3.4.0"
+        headers = {"content-type": "application/json"}
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=0):
+            del chunk_size
+            yield b'{"message":"Not Found"}'
+
+    monkeypatch.setattr(app_controller_module.requests, "get", lambda *args, **kwargs: _FakeResponse())
+
+    with pytest.raises(app_controller_module.DirectInstallerUnavailableError):
+        c._download_update_installer(
+            "https://example.com/releases/download/v3.4.0/latest",
+            "3.4.0",
+        )
