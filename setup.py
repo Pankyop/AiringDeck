@@ -7,7 +7,7 @@ native_extension = Extension(
 
 setup(
     name="airingdeck",
-    version="3.5.0",
+    version="3.5.1",
     description="Desktop anime airing tracker with AniList integration",
     license="GPL-3.0-or-later",
     packages=find_packages(where="src"),
