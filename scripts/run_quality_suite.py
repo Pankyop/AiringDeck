@@ -25,6 +25,8 @@ def main() -> int:
         ([sys.executable, "-m", "py_compile", "src/main.py", "src/core/app_controller.py", "src/core/anime_model.py", "src/core/worker.py"], "Compile checks"),
         ([sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"], "Static lint (ruff)"),
         ([sys.executable, "-m", "bandit", "-q", "-r", "src"], "Security scan (bandit)"),
+        ([sys.executable, "scripts/check_dependency_sync.py"], "Dependency sync check"),
+        ([sys.executable, "-m", "pip_audit", "-r", "requirements.txt"], "Dependency vulnerability scan (pip-audit)"),
         ([sys.executable, "-m", "coverage", "run", "--source=src", "-m", "pytest", "-q"], "Unit tests"),
         ([sys.executable, "-m", "coverage", "report", "-m", "-i"], "Coverage report"),
     ]

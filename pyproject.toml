@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airingdeck"
-version = "3.5.1"
+version = "3.5.2"
 description = "Desktop anime airing tracker with AniList integration"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "PySide6>=6.7.0",
-    "requests>=2.31.0",
+    "requests>=2.32.4",
     "python-dotenv>=1.0.0",
     "keyring>=24.3.0",
 ]

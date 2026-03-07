@@ -38,6 +38,11 @@ SemVer and prerelease identifiers (`-beta`, `-rc`).
 - verify AniList usage still aligned with current terms,
 - verify No-Tracker defaults and first-run privacy dialog behavior.
 
+7. Produce release QA report from template:
+- fill `docs/release_qa_report_template.md` into a versioned report file,
+- include mandatory KPI summary (tests, coverage, ruff, bandit, dependency sync, pip-audit),
+- include packaging/smoke checklist outcomes (`dist/AiringDeck.exe` + installer).
+
 ## 4) Release commit
 
 Example:
@@ -80,6 +85,7 @@ git push origin v3.3.0
 - Windows installer generated (`dist/AiringDeck-Setup-<version>.exe`).
 - No open P0 blockers in roadmap.
 - Compliance checklist completed for the target tag.
+- Release QA report completed with mandatory KPI/checklist sections.
 
 ## 8) Release notes template
 
@@ -88,3 +94,5 @@ It includes a mandatory compliance section:
 - data/privacy impact,
 - network/API impact,
 - AniList usage statement.
+
+Use `docs/release_qa_report_template.md` to standardize QA evidence before tagging.

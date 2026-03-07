@@ -561,3 +561,124 @@ def test_integration_download_update_installer_rejects_json_release_payload(monk
             "https://example.com/releases/download/v3.4.0/latest",
             "3.4.0",
         )
+
+
+def test_integration_update_helpers_parse_and_sanitize_filenames(monkeypatch):
+    c = _make_controller(monkeypatch)
+    del monkeypatch  # not used after controller creation
+
+    utf8_name = app_controller_module.AppController._extract_filename_from_content_disposition(
+        "attachment; filename*=UTF-8''AiringDeck%20Setup%203.6.0.exe"
+    )
+    quoted_name = app_controller_module.AppController._extract_filename_from_content_disposition(
+        'attachment; filename="AiringDeck-Setup-3.6.0.exe"'
+    )
+
+    assert utf8_name == "AiringDeck Setup 3.6.0.exe"
+    assert quoted_name == "AiringDeck-Setup-3.6.0.exe"
+    assert c._normalize_download_version("v3.6.0 rc#1") == "v3.6.0-rc-1"
+    assert c._sanitize_download_filename(r"..\\..\\EvilInstaller.exe") == "EvilInstaller.exe"
+    assert c._sanitize_download_filename(".hidden.exe") == "hidden.exe"
+
+
+def test_integration_download_update_installer_rejects_non_http_redirect(monkeypatch):
+    c = _make_controller(monkeypatch)
+
+    class _FakeResponse:
+        url = "file:///tmp/EvilInstaller.exe"
+        headers = {"content-type": "application/octet-stream"}
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=0):
+            del chunk_size
+            yield b"MZfake"
+
+    monkeypatch.setattr(app_controller_module.requests, "get", lambda *args, **kwargs: _FakeResponse())
+
+    with pytest.raises(ValueError, match="Unsupported redirected update URL"):
+        c._download_update_installer(
+            "https://example.com/releases/download/v3.4.0/latest",
+            "3.4.0",
+        )
+
+
+def test_integration_download_update_installer_infers_extension_from_msi_content_type(monkeypatch, tmp_path):
+    c = _make_controller(monkeypatch)
+
+    class _FakeResponse:
+        url = "https://example.com/releases/download/v3.4.0/latest"
+        headers = {"content-type": "application/x-msi"}
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=0):
+            del chunk_size
+            yield b"MSIfake"
+
+    monkeypatch.setattr(app_controller_module.requests, "get", lambda *args, **kwargs: _FakeResponse())
+    monkeypatch.setattr(app_controller_module.tempfile, "gettempdir", lambda: str(tmp_path))
+
+    payload = c._download_update_installer(
+        "https://example.com/releases/download/v3.4.0/latest",
+        "3.4.0",
+    )
+
+    saved_path = Path(payload["path"])
+    assert saved_path.name == "AiringDeck-Setup-3.4.0.msi"
+    assert saved_path.read_bytes() == b"MSIfake"
+
+
+def test_integration_on_update_install_result_missing_path_sets_explicit_message(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c._set_update_install_state(True, "Downloading update...")
+
+    c._on_update_install_result({})
+
+    assert c.updateInstallInProgress is False
+    assert "Download aggiornamento non riuscito" in c.statusMessage
+
+
+def test_integration_on_update_install_error_direct_installer_fallback_manual_message(monkeypatch):
+    c = _make_controller(monkeypatch, update_service_cls=FakeReleasePageUpdateService)
+    c.checkForUpdates()
+    c._set_update_install_state(True, "Downloading update...")
+
+    monkeypatch.setattr(app_controller_module.QDesktopServices, "openUrl", lambda _url: False)
+
+    c._on_update_install_error(
+        (
+            Exception,
+            app_controller_module.DirectInstallerUnavailableError("direct asset not available"),
+            "traceback",
+        )
+    )
+
+    assert c.updateInstallInProgress is False
+    assert "Installer diretto non disponibile. Apri la pagina release." in c.statusMessage
+
+
+def test_integration_on_update_install_finished_clears_stale_progress(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c._set_update_install_state(True, "Downloading update...")
+
+    c._on_update_install_finished()
+
+    assert c.updateInstallInProgress is False
+    assert c.updateInstallMessage == ""
+
+
+def test_integration_sync_request_cancels_pending_retry_before_start(monkeypatch):
+    c = _make_controller(monkeypatch)
+    c._on_auth_completed("token-123")
+
+    c._schedule_sync_retry(77, 5000, user_visible=True)
+    assert c._sync_retry_timer.isActive() is True
+    started_before = c._thread_pool.started
+
+    c.syncAnimeList()
+
+    assert c._thread_pool.started > started_before
+    assert c._sync_retry_timer.isActive() is False

@@ -9,6 +9,19 @@ This project follows Keep a Changelog and Semantic Versioning.
 ### Changed
 - No pending entries.
 
+## [3.5.2] - 2026-03-07
+
+### Added
+- CI quality workflow with mandatory dependency sync and vulnerability audit gates.
+- Expanded critical-path tests for settings storage resilience and updater install/fallback branches.
+- Standardized release QA report template with fixed KPIs and packaging/smoke checklist.
+
+### Changed
+- Upgraded `requests` to `2.32.4` to address known vulnerabilities.
+- Aligned dependency constraints between `requirements.txt` and `pyproject.toml`.
+- Extended local quality suite to include dependency sync validation and `pip-audit` checks.
+- Improved overall automated coverage from the previous release snapshot with focused branch tests.
+
 ## [3.5.1] - 2026-03-04
 
 ### Added

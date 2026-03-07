@@ -35,8 +35,18 @@ python -m coverage report -m
 ```bash
 python -m ruff check src tests scripts
 python -m bandit -q -r src
+python scripts/check_dependency_sync.py
+python -m pip_audit -r requirements.txt
 ```
 
 ## 5) Fuzzing
 
 `tests/test_fuzz_filter_entries.py` uses `hypothesis` to stress the text filtering path.
+
+## 6) Release KPI report
+
+For every release candidate/stable tag, fill:
+
+- `docs/release_qa_report_template.md`
+
+with fixed KPI fields and packaging/smoke checklist outcomes.
