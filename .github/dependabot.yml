@@ -1,0 +1,45 @@
+version: 2
+
+updates:
+  # Python dependencies (pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Pankyop"
+    labels:
+      - "dependencies"
+      - "python"
+    ignore:
+      # PySide6 major bumps require manual validation (UI regression risk)
+      - dependency-name: "PySide6"
+        update-types: ["version-update:semver-major"]
+      # PyInstaller major bumps require packaging re-validation
+      - dependency-name: "pyinstaller"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "Pankyop"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
