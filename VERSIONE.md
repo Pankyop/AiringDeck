@@ -1,10 +1,10 @@
 # RELEASE STATUS
 
-Last updated: February 24, 2026
+Last updated: October 9, 2026
 
 ## Current version
 
-- `3.4.0` (Stable)
+- `3.5.3` (Stable)
 
 Aligned files:
 - `src/version.py`
@@ -16,7 +16,7 @@ Aligned files:
 1. Full quality suite:
 - Command: `python scripts/run_quality_suite.py`
 - Result: **PASS**
-- Outcome: `73 passed`, total coverage `84%`
+- Outcome: `110 passed`, total coverage `85%`
 
 2. Runtime smoke from source:
 - Command: `AIRINGDECK_AUTO_EXIT_MS=12000 python src/main.py`
