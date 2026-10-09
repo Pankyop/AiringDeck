@@ -143,3 +143,38 @@ def test_check_latest_returns_unavailable_when_no_release_or_tags(monkeypatch):
     out = svc.check_latest("3.3.0")
     assert out["available"] is False
     assert out["current_version"] == "3.3.0"
+
+
+def test_from_tags_payload_selects_highest_semver(monkeypatch):
+    monkeypatch.setenv("AIRINGDECK_UPDATE_REPOSITORY", "owner/repo")
+    svc = UpdateService()
+
+    payload = [
+        {"name": "v3.2.0"},
+        {"name": "v3.5.0"},
+        {"name": "v3.4.0"},
+        {"name": "v3.10.0"},
+        {"name": "v3.9.0"},
+        {"name": "invalid-tag"},
+    ]
+
+    out = svc._from_tags_payload(payload)
+    assert out is not None
+    assert out["latest_version"] == "3.10.0"
+    assert out["source"] == "tag"
+
+
+def test_from_tags_payload_respects_prerelease_hierarchy(monkeypatch):
+    monkeypatch.setenv("AIRINGDECK_UPDATE_REPOSITORY", "owner/repo")
+    svc = UpdateService()
+
+    payload = [
+        {"name": "v3.4.0-rc.1"},
+        {"name": "v3.4.0-beta.2"},
+        {"name": "v3.4.0-alpha.1"},
+    ]
+
+    out = svc._from_tags_payload(payload)
+    assert out is not None
+    assert out["latest_version"] == "3.4.0-rc.1"
+
