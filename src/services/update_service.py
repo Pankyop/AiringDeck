@@ -171,21 +171,32 @@ class UpdateService:
     def _from_tags_payload(self, payload: Any) -> dict[str, Any] | None:
         if not isinstance(payload, list):
             return None
+        valid_candidates: list[tuple[ParsedVersion, str]] = []
         for tag in payload:
             raw_tag = str((tag or {}).get("name") or "").strip()
             latest_version = self._extract_version(raw_tag)
             if not latest_version:
                 continue
-            return {
-                "latest_version": latest_version,
-                "title": f"v{latest_version}",
-                "notes": "A new update is available. Check release notes on GitHub.",
-                "download_url": self._download_url
-                or f"https://github.com/{self._repo}/releases",
-                "published_at": "",
-                "source": "tag",
-            }
-        return None
+            try:
+                parsed = self._parse_version(latest_version)
+                valid_candidates.append((parsed, latest_version))
+            except ValueError:
+                continue
+
+        if not valid_candidates:
+            return None
+
+        valid_candidates.sort(key=lambda item: item[0], reverse=True)
+        latest_version = valid_candidates[0][1]
+        return {
+            "latest_version": latest_version,
+            "title": f"v{latest_version}",
+            "notes": "A new update is available. Check release notes on GitHub.",
+            "download_url": self._download_url
+            or f"https://github.com/{self._repo}/releases",
+            "published_at": "",
+            "source": "tag",
+        }
 
     def check_latest(self, current_version: str) -> dict[str, Any]:
         current = self._extract_version(current_version) or current_version
