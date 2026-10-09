@@ -9,6 +9,18 @@ This project follows Keep a Changelog and Semantic Versioning.
 ### Changed
 - No pending entries.
 
+## [3.5.3] - 2026-10-09
+
+### Fixed
+- Restricted local OAuth TCP listener to loopback interfaces (`LocalHost` / `LocalHostIPv6`) preventing exposure to external network interfaces (BUG-01).
+- Prevented debug-level log leakage of raw OAuth bearer token in callback request prefixes (BUG-02).
+- Fixed double URL decoding of OAuth token parameter by removing redundant `unquote` after `parse_qs` (BUG-03).
+- Corrected update service GitHub tags fallback to sort and pick the highest semantic version rather than taking the first tag (BUG-04).
+
+### Changed
+- Upgraded `requests` to `2.34.2` and `python-dotenv` to `1.2.2` to resolve known security vulnerabilities identified in `pip-audit`.
+- Added regression tests covering OAuth loopback binding, debug logging privacy, and SemVer tag sorting.
+
 ## [3.5.2] - 2026-03-07
 
 ### Added
