@@ -224,7 +224,7 @@ def test_start_auth_flow_emits_failed_when_binds_fail(monkeypatch):
     assert failed == ["Failed to start local server on port 8080"]
 
 
-def test_start_auth_flow_fallback_ipv4_success_opens_browser(monkeypatch):
+def test_start_auth_flow_fallback_loopback_ipv6_success_opens_browser(monkeypatch):
     monkeypatch.setattr(auth_module.AuthService, "get_saved_token", lambda self: None)
     server = _TcpServerProbe([False, True])
     monkeypatch.setattr(auth_module, "QTcpServer", lambda: server)
@@ -239,7 +239,10 @@ def test_start_auth_flow_fallback_ipv4_success_opens_browser(monkeypatch):
     svc = auth_module.AuthService()
     svc.start_auth_flow()
 
-    assert len(server.listen_calls) == 2
+    assert server.listen_calls == [
+        (auth_module.QHostAddress.LocalHost, 8080),
+        (auth_module.QHostAddress.LocalHostIPv6, 8080),
+    ]
     assert server.newConnection.connected is not None
     assert opened["url"] is not None
     assert "https://anilist.co/api/v2/oauth/authorize" in opened["url"]
@@ -342,3 +345,39 @@ def test_clear_token_ignores_delete_exceptions(monkeypatch):
     svc.clear_token()
 
     assert svc._token is None
+
+
+def test_read_socket_does_not_log_token_in_debug(caplog, monkeypatch):
+    import logging
+    monkeypatch.setattr(auth_module.AuthService, "get_saved_token", lambda self: None)
+    svc = auth_module.AuthService()
+    secret_token = "very_secret_oauth_token_12345"
+
+    with caplog.at_level(logging.DEBUG, logger="airingdeck.auth"):
+        sock = _ReadyReadSocket(f"GET /submit_token?token={secret_token} HTTP/1.1\r\n\r\n")
+        # We don't need _handle_token_submission to execute fully here, just test _read_socket logging
+        monkeypatch.setattr(svc, "_handle_token_submission", lambda data, s: None)
+        svc._read_socket(sock)
+
+    assert secret_token not in caplog.text
+
+
+def test_handle_token_submission_preserves_encoded_characters(monkeypatch):
+    from urllib.parse import quote
+    monkeypatch.setattr(auth_module.AuthService, "get_saved_token", lambda self: None)
+    svc = auth_module.AuthService()
+    svc._server = _FakeServer()
+    fake_socket = _FakeSocket()
+
+    saved = []
+    monkeypatch.setattr(svc, "save_token", lambda token: saved.append(token))
+
+    # Token containing percent-encoded-like sequences (%2F, %25, %2B)
+    raw_token = "token_with_%2F_and_%25_and_+_chars"
+    encoded_param = quote(raw_token, safe="")
+    data = f"GET /submit_token?token={encoded_param} HTTP/1.1\r\nHost: localhost\r\n\r\n"
+
+    svc._handle_token_submission(data, fake_socket)
+
+    assert saved == [raw_token]
+
