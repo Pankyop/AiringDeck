@@ -23,7 +23,7 @@ updates:
       - dependency-name: "pyinstaller"
         update-types: ["version-update:semver-major"]
     commit-message:
-      prefix: "build(deps)"
+      prefix: "build"
       include: "scope"
 
   # GitHub Actions
@@ -41,5 +41,5 @@ updates:
       - "dependencies"
       - "github-actions"
     commit-message:
-      prefix: "ci(deps)"
+      prefix: "ci"
       include: "scope"
