@@ -3,7 +3,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtNetwork import QTcpServer, QTcpSocket, QHostAddress
 import logging
 import keyring
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, urlparse
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -48,11 +48,11 @@ class AuthService(QObject):
         self._server = QTcpServer()
         self._server.newConnection.connect(self._handle_connection)
         
-        # Listen on ANY (IPv6 + IPv4)
-        if not self._server.listen(QHostAddress.Any, 8080):
-            logger.error("Failed to start server on Any:8080: %s", self._server.errorString())
-            # Fallback to IPv4 only if Any fails
-            if not self._server.listen(QHostAddress.AnyIPv4, 8080):
+        # Listen only on loopback interfaces
+        if not self._server.listen(QHostAddress.LocalHost, 8080):
+            logger.warning("Failed to start server on LocalHost:8080: %s", self._server.errorString())
+            # Fallback to IPv6 loopback if LocalHost fails
+            if not self._server.listen(QHostAddress.LocalHostIPv6, 8080):
                 self.auth_failed.emit("Failed to start local server on port 8080")
                 return
         
@@ -73,7 +73,7 @@ class AuthService(QObject):
     def _read_socket(self, socket: QTcpSocket):
         """Read HTTP request from socket"""
         data = socket.readAll().data().decode('utf-8')
-        logger.debug("Server received content prefix: %s", data[:100])
+        logger.debug("Server received incoming callback request (%d bytes)", len(data))
         
         # Simple HTTP parsing
         if "GET /callback" in data or "GET / " in data:
@@ -135,7 +135,6 @@ class AuthService(QObject):
             path = request_line.split(' ')[1]
             query = urlparse(path).query
             token = parse_qs(query).get("token", [None])[0]
-            token = unquote(token) if token else None
             if not token:
                 raise ValueError("Missing token query parameter")
             logger.info("Token successfully parsed")
